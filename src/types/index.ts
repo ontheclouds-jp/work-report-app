@@ -1,3 +1,5 @@
+import type { DayType } from "@/lib/calculations";
+
 export type WorkTypeStatus = "active" | "paused" | "ended";
 
 export interface WorkType {
@@ -21,8 +23,12 @@ export interface WorkLog {
   rawDuration: number; // hours, before break deduction
   breakHours: number; // fixed 1.0 in stage 1
   workHours: number; // rawDuration - breakHours
+  dayType: DayType; // weekday / saturday / sunday, derived from workDate
+  dayMultiplier: number; // 1.0 / 1.25 / 1.35, derived from dayType
+  regularHours: number; // portion of workHours up to 8 hours
+  overtimeHours: number; // portion of workHours beyond 8 hours
   hourlyRate: number;
-  amount: number; // workHours * hourlyRate
+  amount: number; // (regularHours * hourlyRate * dayMultiplier) + (overtimeHours * hourlyRate * dayMultiplier * 1.25)
   content: string;
   memo?: string;
   periodLabel: string; // YYYY-MM, closing period this log belongs to
@@ -36,11 +42,21 @@ export type WorkLogInput = Omit<
   | "rawDuration"
   | "breakHours"
   | "workHours"
+  | "dayType"
+  | "dayMultiplier"
+  | "regularHours"
+  | "overtimeHours"
   | "amount"
   | "periodLabel"
   | "createdAt"
   | "updatedAt"
 >;
+
+export interface AppSettings {
+  id: string; // fixed singleton id "default"
+  defaultStartTime?: string; // HH:mm, initial value proposal for 日報入力画面
+  updatedAt: string;
+}
 
 export const WORK_TYPE_STATUS_LABEL: Record<WorkTypeStatus, string> = {
   active: "使用中",

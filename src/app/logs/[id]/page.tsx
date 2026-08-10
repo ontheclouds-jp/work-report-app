@@ -10,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { db } from "@/lib/db/db";
 import { deleteWorkLog } from "@/lib/repositories/workLogRepository";
-import { formatCurrency, formatHours } from "@/lib/calculations";
+import { DAY_TYPE_LABEL, formatCurrency, formatHours } from "@/lib/calculations";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -73,6 +73,14 @@ export default function WorkLogDetailPage() {
         <DetailRow label="拘束時間" value={formatHours(workLog.rawDuration)} />
         <DetailRow label="休憩時間" value={formatHours(workLog.breakHours)} />
         <DetailRow label="作業時間" value={formatHours(workLog.workHours)} />
+        <DetailRow
+          label="通常時間／残業時間"
+          value={`${formatHours(workLog.regularHours)} ／ ${formatHours(workLog.overtimeHours)}`}
+        />
+        <DetailRow
+          label="曜日区分・割増"
+          value={`${DAY_TYPE_LABEL[workLog.dayType]}（${workLog.dayMultiplier}倍）`}
+        />
         <DetailRow
           label="時間単価"
           value={`${formatCurrency(workLog.hourlyRate)}/時間`}

@@ -1,3 +1,4 @@
+import { DAY_TYPE_LABEL } from "@/lib/calculations";
 import { getPeriodDisplayLabel } from "@/lib/period";
 import type { WorkLog, WorkType } from "@/types";
 
@@ -9,6 +10,10 @@ const CSV_HEADERS = [
   "拘束時間",
   "休憩時間",
   "作業時間",
+  "曜日区分",
+  "曜日倍率",
+  "通常時間",
+  "残業時間",
   "時間単価",
   "金額",
   "作業内容",
@@ -39,6 +44,10 @@ export function workLogsToCsv(logs: WorkLog[], workTypes: WorkType[]): string {
       log.rawDuration,
       log.breakHours,
       log.workHours,
+      DAY_TYPE_LABEL[log.dayType],
+      log.dayMultiplier,
+      log.regularHours,
+      log.overtimeHours,
       log.hourlyRate,
       log.amount,
       log.content,

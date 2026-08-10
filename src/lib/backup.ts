@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/lib/db/db";
-import type { WorkType, WorkLog } from "@/types";
+import type { AppSettings, WorkType, WorkLog } from "@/types";
 
 const BACKUP_VERSION = 1;
 const LAST_BACKUP_KEY = "workReportApp:lastBackupAt";
@@ -11,18 +11,21 @@ export interface BackupData {
   exportedAt: string;
   workTypes: WorkType[];
   workLogs: WorkLog[];
+  appSettings?: AppSettings;
 }
 
 export async function buildBackupData(): Promise<BackupData> {
-  const [workTypes, workLogs] = await Promise.all([
+  const [workTypes, workLogs, appSettings] = await Promise.all([
     db.workTypes.toArray(),
     db.workLogs.toArray(),
+    db.appSettings.get("default"),
   ]);
   return {
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     workTypes,
     workLogs,
+    appSettings,
   };
 }
 
@@ -63,6 +66,10 @@ const workLogBackupSchema = z.object({
   rawDuration: z.number(),
   breakHours: z.number(),
   workHours: z.number(),
+  dayType: z.enum(["weekday", "saturday", "sunday"]),
+  dayMultiplier: z.number(),
+  regularHours: z.number(),
+  overtimeHours: z.number(),
   hourlyRate: z.number(),
   amount: z.number(),
   content: z.string(),
@@ -72,11 +79,18 @@ const workLogBackupSchema = z.object({
   updatedAt: z.string(),
 });
 
+const appSettingsBackupSchema = z.object({
+  id: z.string(),
+  defaultStartTime: z.string().optional(),
+  updatedAt: z.string(),
+});
+
 const backupSchema = z.object({
   version: z.number(),
   exportedAt: z.string(),
   workTypes: z.array(workTypeBackupSchema),
   workLogs: z.array(workLogBackupSchema),
+  appSettings: appSettingsBackupSchema.optional(),
 });
 
 /** JSONテキストをバックアップデータとして検証・変換する。形式が不正な場合は例外を投げる。 */
@@ -96,22 +110,27 @@ export function parseBackupFile(jsonText: string): BackupData {
 
 /** バックアップデータで全データを置き換える。既存データは失われる。 */
 export async function restoreFromBackup(data: BackupData): Promise<void> {
-  await db.transaction("rw", db.workTypes, db.workLogs, async () => {
+  await db.transaction("rw", db.workTypes, db.workLogs, db.appSettings, async () => {
     await db.workTypes.clear();
     await db.workLogs.clear();
+    await db.appSettings.clear();
     if (data.workTypes.length > 0) {
       await db.workTypes.bulkAdd(data.workTypes);
     }
     if (data.workLogs.length > 0) {
       await db.workLogs.bulkAdd(data.workLogs);
     }
+    if (data.appSettings) {
+      await db.appSettings.add(data.appSettings);
+    }
   });
   setLastRestoreAt(new Date().toISOString());
 }
 
 export async function deleteAllData(): Promise<void> {
-  await db.transaction("rw", db.workTypes, db.workLogs, async () => {
+  await db.transaction("rw", db.workTypes, db.workLogs, db.appSettings, async () => {
     await db.workTypes.clear();
     await db.workLogs.clear();
+    await db.appSettings.clear();
   });
 }

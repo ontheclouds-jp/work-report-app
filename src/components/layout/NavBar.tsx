@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { href: "/periods", label: "集計", icon: "📊" },
 ];
 
-const DATA_MANAGEMENT_HREF = "/data";
+const SETTINGS_HREF = "/settings";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -19,7 +19,7 @@ function isActive(pathname: string, href: string) {
 
 export function NavBar() {
   const pathname = usePathname();
-  const dataActive = isActive(pathname, DATA_MANAGEMENT_HREF);
+  const settingsActive = isActive(pathname, SETTINGS_HREF);
 
   return (
     <>
@@ -43,11 +43,11 @@ export function NavBar() {
               </Link>
             ))}
             <Link
-              href={DATA_MANAGEMENT_HREF}
-              aria-label="データ管理"
-              title="データ管理"
+              href={SETTINGS_HREF}
+              aria-label="設定"
+              title="設定"
               className={`flex h-11 w-11 items-center justify-center rounded-lg text-lg transition-colors ${
-                dataActive
+                settingsActive
                   ? "bg-blue-500/15 text-blue-300"
                   : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
               }`}
@@ -61,10 +61,10 @@ export function NavBar() {
       <header className="sticky top-0 z-40 relative flex h-14 items-center justify-center border-b border-slate-800 bg-slate-900/95 backdrop-blur sm:hidden">
         <span className="text-lg font-bold text-slate-50">作業日報帳</span>
         <Link
-          href={DATA_MANAGEMENT_HREF}
-          aria-label="データ管理"
+          href={SETTINGS_HREF}
+          aria-label="設定"
           className={`absolute right-3 flex h-9 w-9 items-center justify-center rounded-lg text-lg ${
-            dataActive ? "text-blue-300" : "text-slate-400"
+            settingsActive ? "text-blue-300" : "text-slate-400"
           }`}
         >
           ⚙️

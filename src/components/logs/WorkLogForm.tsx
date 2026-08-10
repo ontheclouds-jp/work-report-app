@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Field } from "@/components/ui/Field";
@@ -9,12 +9,21 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { db } from "@/lib/db/db";
-import { calcAmount, calcRawDuration, calcWorkHours } from "@/lib/calculations";
+import {
+  DAY_MULTIPLIERS,
+  calcAmount,
+  calcOvertimeSplit,
+  calcRawDuration,
+  calcWorkHours,
+  getDayType,
+} from "@/lib/calculations";
 import { workLogFormSchema } from "@/lib/validations";
 import {
   findWorkLogByWorkTypeAndDate,
   getLatestWorkLogForWorkType,
+  getLatestWorkLogStartTime,
 } from "@/lib/repositories/workLogRepository";
+import { getAppSettings } from "@/lib/repositories/settingsRepository";
 import { todayISODate } from "@/lib/period";
 import { WorkLogCalcPreview } from "./WorkLogCalcPreview";
 import type { WorkLog, WorkLogInput } from "@/types";
@@ -52,6 +61,34 @@ export function WorkLogForm({
   const [overwriteTarget, setOverwriteTarget] = useState<WorkLog | null>(null);
   const [pendingInput, setPendingInput] = useState<WorkLogInput | null>(null);
   const [rateSuggestionNote, setRateSuggestionNote] = useState<string | null>(null);
+  const [startTimeSuggestionNote, setStartTimeSuggestionNote] = useState<
+    string | null
+  >(null);
+  const startTimeSuggested = useRef(false);
+
+  useEffect(() => {
+    if (initialValue || startTimeSuggested.current) return;
+    startTimeSuggested.current = true;
+    (async () => {
+      const settings = await getAppSettings();
+      if (settings?.defaultStartTime) {
+        setStartTime(settings.defaultStartTime);
+        setStartTimeSuggestionNote("設定した基本の開始時刻を入力しました");
+        return;
+      }
+      const latestStartTime = await getLatestWorkLogStartTime();
+      if (latestStartTime) {
+        setStartTime(latestStartTime);
+        setStartTimeSuggestionNote("前回入力した開始時刻を入力しました");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleStartTimeChange(value: string) {
+    setStartTime(value);
+    setStartTimeSuggestionNote(null);
+  }
 
   async function handleWorkTypeChange(nextWorkTypeId: string) {
     setWorkTypeId(nextWorkTypeId);
@@ -78,15 +115,25 @@ export function WorkLogForm({
   }
 
   const preview = useMemo(() => {
+    const dayType = getDayType(workDate);
+    const dayMultiplier = DAY_MULTIPLIERS[dayType];
+    const empty = {
+      rawDuration: null,
+      workHours: null,
+      regularHours: null,
+      overtimeHours: null,
+      amount: null,
+      dayType,
+      dayMultiplier,
+      error: null,
+    };
     if (!startTime || !endTime) {
-      return { rawDuration: null, workHours: null, amount: null, error: null };
+      return empty;
     }
     const rawDuration = calcRawDuration(startTime, endTime);
     if (rawDuration === null) {
       return {
-        rawDuration: null,
-        workHours: null,
-        amount: null,
+        ...empty,
         error:
           "終了時刻は開始時刻より後にしてください（日をまたぐ入力には対応していません）",
       };
@@ -94,25 +141,29 @@ export function WorkLogForm({
     const workHoursResult = calcWorkHours(rawDuration);
     if (workHoursResult === null) {
       return {
+        ...empty,
         rawDuration,
-        workHours: null,
-        amount: null,
         error:
           "拘束時間が1時間以下のため、休憩を差し引いた作業時間を計算できません",
       };
     }
+    const { regularHours, overtimeHours } = calcOvertimeSplit(workHoursResult.workHours);
     const rate = Number(hourlyRate);
     const amount =
       hourlyRate !== "" && !Number.isNaN(rate)
-        ? calcAmount(workHoursResult.workHours, rate)
+        ? calcAmount(regularHours, overtimeHours, rate, dayMultiplier)
         : null;
     return {
       rawDuration,
       workHours: workHoursResult.workHours,
+      regularHours,
+      overtimeHours,
       amount,
+      dayType,
+      dayMultiplier,
       error: null,
     };
-  }, [startTime, endTime, hourlyRate]);
+  }, [workDate, startTime, endTime, hourlyRate]);
 
   async function proceedSave(input: WorkLogInput, overwriteId?: string) {
     setSubmitting(true);
@@ -223,8 +274,11 @@ export function WorkLogForm({
               id="startTime"
               type="time"
               value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
+              onChange={(e) => handleStartTimeChange(e.target.value)}
             />
+            {startTimeSuggestionNote && (
+              <p className="mt-1 text-sm text-slate-400">{startTimeSuggestionNote}</p>
+            )}
           </Field>
           <Field label="終了時刻" required error={errors.endTime} htmlFor="endTime">
             <Input
@@ -239,6 +293,10 @@ export function WorkLogForm({
         <WorkLogCalcPreview
           rawDuration={preview.rawDuration}
           workHours={preview.workHours}
+          regularHours={preview.regularHours}
+          overtimeHours={preview.overtimeHours}
+          dayType={preview.dayType}
+          dayMultiplier={preview.dayMultiplier}
           amount={preview.amount}
           error={preview.error}
         />

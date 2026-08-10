@@ -167,7 +167,7 @@ export default function DataManagementPage() {
 
   return (
     <div>
-      <PageHeader title="データ管理" backHref="/" />
+      <PageHeader title="データ管理" backHref="/settings" />
 
       <div className="flex flex-col gap-6">
         <Card>

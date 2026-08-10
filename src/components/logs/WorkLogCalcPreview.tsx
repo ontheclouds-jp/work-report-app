@@ -1,8 +1,12 @@
-import { formatCurrency, formatHours } from "@/lib/calculations";
+import { DAY_TYPE_LABEL, formatCurrency, formatHours, type DayType } from "@/lib/calculations";
 
 interface WorkLogCalcPreviewProps {
   rawDuration: number | null;
   workHours: number | null;
+  regularHours: number | null;
+  overtimeHours: number | null;
+  dayType: DayType;
+  dayMultiplier: number;
   amount: number | null;
   error: string | null;
 }
@@ -10,6 +14,10 @@ interface WorkLogCalcPreviewProps {
 export function WorkLogCalcPreview({
   rawDuration,
   workHours,
+  regularHours,
+  overtimeHours,
+  dayType,
+  dayMultiplier,
   amount,
   error,
 }: WorkLogCalcPreviewProps) {
@@ -26,6 +34,21 @@ export function WorkLogCalcPreview({
           <dt className="text-slate-400">作業時間（休憩1h差引後）</dt>
           <dd className="text-base font-semibold text-slate-100">
             {workHours !== null ? formatHours(workHours) : "―"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-slate-400">通常時間／残業時間</dt>
+          <dd className="text-base font-semibold text-slate-100">
+            {regularHours !== null && overtimeHours !== null
+              ? `${formatHours(regularHours)} ／ ${formatHours(overtimeHours)}`
+              : "―"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-slate-400">適用される割増</dt>
+          <dd className="text-base font-semibold text-slate-100">
+            {DAY_TYPE_LABEL[dayType]}（{dayMultiplier}倍）
+            {overtimeHours !== null && overtimeHours > 0 && " ＋残業1.25倍"}
           </dd>
         </div>
         <div className="col-span-2">

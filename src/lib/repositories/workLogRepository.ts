@@ -1,5 +1,12 @@
 import { db } from "@/lib/db/db";
-import { calcAmount, calcRawDuration, calcWorkHours } from "@/lib/calculations";
+import {
+  DAY_MULTIPLIERS,
+  calcAmount,
+  calcOvertimeSplit,
+  calcRawDuration,
+  calcWorkHours,
+  getDayType,
+} from "@/lib/calculations";
 import { calcPeriodLabel } from "@/lib/period";
 import type { WorkLog, WorkLogInput } from "@/types";
 
@@ -16,9 +23,20 @@ function buildComputedFields(input: WorkLogInput) {
       "拘束時間が1時間以下のため、休憩を差し引いた作業時間を計算できません"
     );
   }
-  const amount = calcAmount(workHoursResult.workHours, input.hourlyRate);
+  const dayType = getDayType(input.workDate);
+  const dayMultiplier = DAY_MULTIPLIERS[dayType];
+  const { regularHours, overtimeHours } = calcOvertimeSplit(workHoursResult.workHours);
+  const amount = calcAmount(regularHours, overtimeHours, input.hourlyRate, dayMultiplier);
   const periodLabel = calcPeriodLabel(input.workDate);
-  return { ...workHoursResult, amount, periodLabel };
+  return {
+    ...workHoursResult,
+    dayType,
+    dayMultiplier,
+    regularHours,
+    overtimeHours,
+    amount,
+    periodLabel,
+  };
 }
 
 export async function listWorkLogs(): Promise<WorkLog[]> {
@@ -44,6 +62,18 @@ export async function getLatestWorkLogForWorkType(
   return candidates.reduce((latest, log) =>
     log.createdAt > latest.createdAt ? log : latest
   );
+}
+
+/** 直前に入力された（＝最後に登録・更新された）日報の開始時刻を返す。開始時刻の初期値提案に使う。 */
+export async function getLatestWorkLogStartTime(
+  excludeId?: string
+): Promise<string | undefined> {
+  const logs = await db.workLogs.toArray();
+  const candidates = excludeId ? logs.filter((log) => log.id !== excludeId) : logs;
+  if (candidates.length === 0) return undefined;
+  return candidates.reduce((latest, log) =>
+    log.createdAt > latest.createdAt ? log : latest
+  ).startTime;
 }
 
 export async function findWorkLogByWorkTypeAndDate(

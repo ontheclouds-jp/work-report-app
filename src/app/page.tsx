@@ -48,9 +48,15 @@ export default function HomePage() {
   );
   const workTypes = useLiveQuery(() => db.workTypes.toArray(), []);
   const workTypeNameById = new Map(workTypes?.map((w) => [w.id, w.name]) ?? []);
+  const totalLogCount = useLiveQuery(() => db.workLogs.count(), []);
 
   const loading = todaysLogs === undefined;
   const hasLogsToday = (todaysLogs?.length ?? 0) > 0;
+  const isFirstLaunch =
+    workTypes !== undefined &&
+    totalLogCount !== undefined &&
+    workTypes.length === 0 &&
+    totalLogCount === 0;
 
   const periodTotals = summarizeLogs(periodLogs ?? []);
   const periodByWorkType = summarizeByWorkType(periodLogs ?? [], workTypes ?? []);
@@ -64,6 +70,19 @@ export default function HomePage() {
           {formatDateLabel(today)}
         </h1>
       </div>
+
+      {isFirstLaunch && (
+        <Card className="border-slate-700 bg-slate-800/60 text-center">
+          <p className="text-sm text-slate-300">
+            はじめての方は、使い方を確認できます。
+          </p>
+          <Link href="/help">
+            <Button variant="ghost" fullWidth className="mt-2">
+              ヘルプを見る
+            </Button>
+          </Link>
+        </Card>
+      )}
 
       {!loading && !hasLogsToday && (
         <Card className="border-blue-800/50 bg-blue-950/30 text-center">

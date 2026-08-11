@@ -75,6 +75,12 @@ export default function SettingsPage() {
             データ管理（書き出し・バックアップ・復元）
           </Button>
         </Link>
+
+        <Link href="/help">
+          <Button variant="secondary" fullWidth>
+            ヘルプ（使い方・バージョン情報）
+          </Button>
+        </Link>
       </div>
     </div>
   );

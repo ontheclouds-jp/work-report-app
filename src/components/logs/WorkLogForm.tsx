@@ -23,7 +23,7 @@ import {
   getLatestWorkLogForWorkType,
   getLatestWorkLogStartTime,
 } from "@/lib/repositories/workLogRepository";
-import { getAppSettings } from "@/lib/repositories/settingsRepository";
+import { DEFAULT_END_TIME, getAppSettings } from "@/lib/repositories/settingsRepository";
 import { todayISODate } from "@/lib/period";
 import { WorkLogCalcPreview } from "./WorkLogCalcPreview";
 import type { WorkLog, WorkLogInput } from "@/types";
@@ -64,6 +64,9 @@ export function WorkLogForm({
   const [startTimeSuggestionNote, setStartTimeSuggestionNote] = useState<
     string | null
   >(null);
+  const [endTimeSuggestionNote, setEndTimeSuggestionNote] = useState<
+    string | null
+  >(null);
   const startTimeSuggested = useRef(false);
 
   useEffect(() => {
@@ -74,13 +77,15 @@ export function WorkLogForm({
       if (settings?.defaultStartTime) {
         setStartTime(settings.defaultStartTime);
         setStartTimeSuggestionNote("設定した基本の開始時刻を入力しました");
-        return;
+      } else {
+        const latestStartTime = await getLatestWorkLogStartTime();
+        if (latestStartTime) {
+          setStartTime(latestStartTime);
+          setStartTimeSuggestionNote("前回入力した開始時刻を入力しました");
+        }
       }
-      const latestStartTime = await getLatestWorkLogStartTime();
-      if (latestStartTime) {
-        setStartTime(latestStartTime);
-        setStartTimeSuggestionNote("前回入力した開始時刻を入力しました");
-      }
+      setEndTime(settings?.defaultEndTime ?? DEFAULT_END_TIME);
+      setEndTimeSuggestionNote("設定した基本の終了時刻を入力しました");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -88,6 +93,11 @@ export function WorkLogForm({
   function handleStartTimeChange(value: string) {
     setStartTime(value);
     setStartTimeSuggestionNote(null);
+  }
+
+  function handleEndTimeChange(value: string) {
+    setEndTime(value);
+    setEndTimeSuggestionNote(null);
   }
 
   async function handleWorkTypeChange(nextWorkTypeId: string) {
@@ -285,8 +295,11 @@ export function WorkLogForm({
               id="endTime"
               type="time"
               value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
+              onChange={(e) => handleEndTimeChange(e.target.value)}
             />
+            {endTimeSuggestionNote && (
+              <p className="mt-1 text-sm text-slate-400">{endTimeSuggestionNote}</p>
+            )}
           </Field>
         </div>
 

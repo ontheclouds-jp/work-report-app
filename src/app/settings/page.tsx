@@ -7,11 +7,16 @@ import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { getAppSettings, updateAppSettings } from "@/lib/repositories/settingsRepository";
+import {
+  DEFAULT_END_TIME,
+  getAppSettings,
+  updateAppSettings,
+} from "@/lib/repositories/settingsRepository";
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [defaultStartTime, setDefaultStartTime] = useState("");
+  const [defaultEndTime, setDefaultEndTime] = useState(DEFAULT_END_TIME);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
 
@@ -19,6 +24,7 @@ export default function SettingsPage() {
     (async () => {
       const settings = await getAppSettings();
       setDefaultStartTime(settings?.defaultStartTime ?? "");
+      setDefaultEndTime(settings?.defaultEndTime ?? DEFAULT_END_TIME);
       setLoading(false);
     })();
   }, []);
@@ -28,6 +34,7 @@ export default function SettingsPage() {
     try {
       await updateAppSettings({
         defaultStartTime: defaultStartTime === "" ? undefined : defaultStartTime,
+        defaultEndTime: defaultEndTime === "" ? undefined : defaultEndTime,
       });
       setSavedMessage(true);
     } finally {
@@ -62,13 +69,38 @@ export default function SettingsPage() {
               </Field>
             </div>
           )}
-          <Button onClick={handleSave} disabled={loading || saving} className="mt-4">
-            {saving ? "保存中..." : "保存する"}
-          </Button>
-          {savedMessage && (
-            <p className="mt-2 text-sm text-slate-400">設定を保存しました。</p>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold text-slate-50">
+            基本の終了時刻
+          </h2>
+          <p className="mt-1 text-sm text-slate-400">
+            日報入力画面の終了時刻の初期値として提案します（初期値：18:00）。入力時に自由に変更できます。
+          </p>
+          {!loading && (
+            <div className="mt-4">
+              <Field label="基本の終了時刻" htmlFor="defaultEndTime">
+                <Input
+                  id="defaultEndTime"
+                  type="time"
+                  value={defaultEndTime}
+                  onChange={(e) => {
+                    setDefaultEndTime(e.target.value);
+                    setSavedMessage(false);
+                  }}
+                />
+              </Field>
+            </div>
           )}
         </Card>
+
+        <Button onClick={handleSave} disabled={loading || saving} fullWidth>
+          {saving ? "保存中..." : "保存する"}
+        </Button>
+        {savedMessage && (
+          <p className="text-sm text-slate-400">設定を保存しました。</p>
+        )}
 
         <Link href="/data">
           <Button variant="secondary" fullWidth>

@@ -55,6 +55,7 @@ export type WorkLogInput = Omit<
 export interface AppSettings {
   id: string; // fixed singleton id "default"
   defaultStartTime?: string; // HH:mm, initial value proposal for 日報入力画面
+  defaultEndTime?: string; // HH:mm, initial value proposal for 日報入力画面 (falls back to DEFAULT_END_TIME)
   updatedAt: string;
 }
 

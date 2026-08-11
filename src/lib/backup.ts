@@ -82,6 +82,7 @@ const workLogBackupSchema = z.object({
 const appSettingsBackupSchema = z.object({
   id: z.string(),
   defaultStartTime: z.string().optional(),
+  defaultEndTime: z.string().optional(),
   updatedAt: z.string(),
 });
 

@@ -3,6 +3,8 @@ import type { AppSettings } from "@/types";
 
 const SETTINGS_ID = "default";
 
+export const DEFAULT_END_TIME = "18:00";
+
 export async function getAppSettings(): Promise<AppSettings | undefined> {
   return db.appSettings.get(SETTINGS_ID);
 }

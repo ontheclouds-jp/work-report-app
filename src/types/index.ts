@@ -21,7 +21,7 @@ export interface WorkLog {
   startTime: string; // HH:mm
   endTime: string; // HH:mm
   rawDuration: number; // hours, before break deduction
-  breakHours: number; // fixed 1.0 in stage 1
+  breakHours: number; // 1.0 if work span overlaps 12:00-13:00, else 0
   workHours: number; // rawDuration - breakHours
   dayType: DayType; // weekday / saturday / sunday, derived from workDate
   dayMultiplier: number; // 1.0 / 1.25 / 1.35, derived from dayType

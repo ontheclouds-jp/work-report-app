@@ -1,4 +1,6 @@
-const FIXED_BREAK_HOURS = 1.0;
+const LUNCH_BREAK_HOURS = 1.0;
+const LUNCH_BREAK_START_MINUTES = 12 * 60;
+const LUNCH_BREAK_END_MINUTES = 13 * 60;
 const OVERTIME_THRESHOLD_HOURS = 8;
 const OVERTIME_MULTIPLIER = 1.25;
 
@@ -29,13 +31,33 @@ export interface WorkHoursResult {
 }
 
 /**
- * 拘束時間から固定休憩1時間を差し引いた作業時間を計算する。
- * 拘束時間が1時間以下の場合は作業時間が0以下になるため null を返す。
+ * 勤務時間帯（開始時刻〜終了時刻）が昼休憩「12:00〜13:00」と重なるかどうかを判定する。
+ * 開始時刻 < 13:00 かつ 終了時刻 > 12:00 の場合のみ重なっているとみなす。
  */
-export function calcWorkHours(rawDuration: number): WorkHoursResult | null {
-  const workHours = round2(rawDuration - FIXED_BREAK_HOURS);
+export function overlapsLunchBreak(startTime: string, endTime: string): boolean {
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  return startMinutes < LUNCH_BREAK_END_MINUTES && endMinutes > LUNCH_BREAK_START_MINUTES;
+}
+
+/** 勤務時間帯が昼休憩と重なる場合のみ1.0時間、重ならない場合は0時間を返す。 */
+export function calcBreakHours(startTime: string, endTime: string): number {
+  return overlapsLunchBreak(startTime, endTime) ? LUNCH_BREAK_HOURS : 0;
+}
+
+/**
+ * 拘束時間から昼休憩（勤務時間帯が12:00〜13:00と重なる場合のみ1時間）を差し引いた作業時間を計算する。
+ * 差し引いた結果、作業時間が0以下になる場合は null を返す。
+ */
+export function calcWorkHours(
+  startTime: string,
+  endTime: string,
+  rawDuration: number
+): WorkHoursResult | null {
+  const breakHours = calcBreakHours(startTime, endTime);
+  const workHours = round2(rawDuration - breakHours);
   if (workHours <= 0) return null;
-  return { rawDuration, breakHours: FIXED_BREAK_HOURS, workHours };
+  return { rawDuration, breakHours, workHours };
 }
 
 export type DayType = "weekday" | "saturday" | "sunday";

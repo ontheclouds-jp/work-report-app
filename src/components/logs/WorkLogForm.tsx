@@ -129,6 +129,7 @@ export function WorkLogForm({
     const dayMultiplier = DAY_MULTIPLIERS[dayType];
     const empty = {
       rawDuration: null,
+      breakHours: null,
       workHours: null,
       regularHours: null,
       overtimeHours: null,
@@ -148,13 +149,13 @@ export function WorkLogForm({
           "終了時刻は開始時刻より後にしてください（日をまたぐ入力には対応していません）",
       };
     }
-    const workHoursResult = calcWorkHours(rawDuration);
+    const workHoursResult = calcWorkHours(startTime, endTime, rawDuration);
     if (workHoursResult === null) {
       return {
         ...empty,
         rawDuration,
         error:
-          "拘束時間が1時間以下のため、休憩を差し引いた作業時間を計算できません",
+          "休憩時間を差し引くと作業時間が0以下になります。時刻を確認してください",
       };
     }
     const { regularHours, overtimeHours } = calcOvertimeSplit(workHoursResult.workHours);
@@ -165,6 +166,7 @@ export function WorkLogForm({
         : null;
     return {
       rawDuration,
+      breakHours: workHoursResult.breakHours,
       workHours: workHoursResult.workHours,
       regularHours,
       overtimeHours,
@@ -305,6 +307,7 @@ export function WorkLogForm({
 
         <WorkLogCalcPreview
           rawDuration={preview.rawDuration}
+          breakHours={preview.breakHours}
           workHours={preview.workHours}
           regularHours={preview.regularHours}
           overtimeHours={preview.overtimeHours}

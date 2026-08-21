@@ -2,6 +2,7 @@ import { DAY_TYPE_LABEL, formatCurrency, formatHours, type DayType } from "@/lib
 
 interface WorkLogCalcPreviewProps {
   rawDuration: number | null;
+  breakHours: number | null;
   workHours: number | null;
   regularHours: number | null;
   overtimeHours: number | null;
@@ -13,6 +14,7 @@ interface WorkLogCalcPreviewProps {
 
 export function WorkLogCalcPreview({
   rawDuration,
+  breakHours,
   workHours,
   regularHours,
   overtimeHours,
@@ -31,7 +33,13 @@ export function WorkLogCalcPreview({
           </dd>
         </div>
         <div>
-          <dt className="text-slate-400">作業時間（休憩1h差引後）</dt>
+          <dt className="text-slate-400">昼休憩</dt>
+          <dd className="text-base font-semibold text-slate-100">
+            {breakHours === null ? "―" : breakHours > 0 ? "あり（1時間差引）" : "なし"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-slate-400">作業時間</dt>
           <dd className="text-base font-semibold text-slate-100">
             {workHours !== null ? formatHours(workHours) : "―"}
           </dd>

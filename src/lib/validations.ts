@@ -52,12 +52,12 @@ export const workLogFormSchema = z
       });
       return;
     }
-    if (calcWorkHours(rawDuration) === null) {
+    if (calcWorkHours(data.startTime, data.endTime, rawDuration) === null) {
       ctx.addIssue({
         code: "custom",
         path: ["endTime"],
         message:
-          "拘束時間が1時間以下のため、休憩を差し引いた作業時間を計算できません",
+          "休憩時間を差し引くと作業時間が0以下になります。時刻を確認してください",
       });
     }
   });

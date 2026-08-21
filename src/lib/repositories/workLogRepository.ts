@@ -17,10 +17,10 @@ function buildComputedFields(input: WorkLogInput) {
       "終了時刻は開始時刻より後にしてください（日をまたぐ入力には対応していません）"
     );
   }
-  const workHoursResult = calcWorkHours(rawDuration);
+  const workHoursResult = calcWorkHours(input.startTime, input.endTime, rawDuration);
   if (workHoursResult === null) {
     throw new Error(
-      "拘束時間が1時間以下のため、休憩を差し引いた作業時間を計算できません"
+      "休憩時間を差し引くと作業時間が0以下になります。時刻を確認してください"
     );
   }
   const dayType = getDayType(input.workDate);

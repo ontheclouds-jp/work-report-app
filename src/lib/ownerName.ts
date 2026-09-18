@@ -10,18 +10,15 @@ export function setOwnerName(name: string): void {
 }
 
 /**
- * 作業者名をクラウドバックアップのファイル名に使える英数字文字列に変換する。
- * 英数字（と - _）のみで構成される名前はそのまま使い、それ以外（日本語名など）は
- * UTF-8バイト列を16進数化して安全かつ同名なら常に同じ文字列になるようにする。
+ * 作業者名をクラウドバックアップのファイル名に変換する。Vercelダッシュボードで
+ * 誰のバックアップか分かるよう、日本語名などもそのまま使い、ファイルパスとして
+ * 問題になる記号（スラッシュや制御文字など）だけを "_" に置換する。
  */
 export function toSafeOwnerFileName(rawName: string): string {
   const trimmed = rawName.normalize("NFC").trim();
   if (trimmed.length === 0) return "unknown";
-  if (/^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?$/.test(trimmed)) {
-    return trimmed;
-  }
-  const bytes = new TextEncoder().encode(trimmed);
-  let hex = "";
-  for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
-  return `u${hex}`;
+  const sanitized = trimmed
+    .replace(/[\x00-\x1f\\/:*?"<>|]/g, "_")
+    .replace(/^\.+/, "_");
+  return sanitized.length === 0 ? "unknown" : sanitized;
 }

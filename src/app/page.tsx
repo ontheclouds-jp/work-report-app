@@ -2,9 +2,11 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import Link from "next/link";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { db } from "@/lib/db/db";
+import { getLastAutoBackupAt, triggerAutoBackup } from "@/lib/autoBackup";
 import { formatCurrency, formatHours } from "@/lib/calculations";
 import { summarizeByWorkType, summarizeLogs } from "@/lib/aggregation";
 import {
@@ -37,6 +39,14 @@ function closingMessage(daysUntilClosing: number): string {
 export default function HomePage() {
   const today = todayISODate();
   const currentPeriodLabel = getCurrentPeriodLabel();
+
+  useEffect(() => {
+    // この端末でまだ自動バックアップを実行したことがなければ、
+    // 既存データをクラウドへ退避するために一度だけ実行する。
+    if (getLastAutoBackupAt() === null) {
+      triggerAutoBackup();
+    }
+  }, []);
 
   const todaysLogs = useLiveQuery(
     () => db.workLogs.where("workDate").equals(today).toArray(),

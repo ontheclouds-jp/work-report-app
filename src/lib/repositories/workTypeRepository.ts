@@ -1,4 +1,5 @@
 import { db } from "@/lib/db/db";
+import { triggerAutoBackup } from "@/lib/autoBackup";
 import type { WorkType, WorkTypeInput } from "@/types";
 
 export async function listWorkTypes(): Promise<WorkType[]> {
@@ -18,6 +19,7 @@ export async function createWorkType(input: WorkTypeInput): Promise<WorkType> {
     updatedAt: now,
   };
   await db.workTypes.add(workType);
+  triggerAutoBackup();
   return workType;
 }
 
@@ -33,11 +35,13 @@ export async function updateWorkType(
     updatedAt: new Date().toISOString(),
   };
   await db.workTypes.put(updated);
+  triggerAutoBackup();
   return updated;
 }
 
 export async function deleteWorkType(id: string): Promise<void> {
   await db.workTypes.delete(id);
+  triggerAutoBackup();
 }
 
 export async function hasWorkLogsForWorkType(

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db/db";
+import { triggerAutoBackup } from "@/lib/autoBackup";
 import {
   DAY_MULTIPLIERS,
   calcAmount,
@@ -99,6 +100,7 @@ export async function createWorkLog(input: WorkLogInput): Promise<WorkLog> {
     updatedAt: now,
   };
   await db.workLogs.add(workLog);
+  triggerAutoBackup();
   return workLog;
 }
 
@@ -116,9 +118,11 @@ export async function updateWorkLog(
     updatedAt: new Date().toISOString(),
   };
   await db.workLogs.put(updated);
+  triggerAutoBackup();
   return updated;
 }
 
 export async function deleteWorkLog(id: string): Promise<void> {
   await db.workLogs.delete(id);
+  triggerAutoBackup();
 }

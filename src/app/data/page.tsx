@@ -21,6 +21,7 @@ import {
   setLastBackupAt,
   type BackupData,
 } from "@/lib/backup";
+import { getLastAutoBackupAt } from "@/lib/autoBackup";
 import {
   getCurrentPeriodLabel,
   getPeriodDisplayLabel,
@@ -64,6 +65,7 @@ export default function DataManagementPage() {
 
   const [lastBackupAt, setLastBackupAtState] = useState<string | null>(null);
   const [lastRestoreAt, setLastRestoreAtState] = useState<string | null>(null);
+  const [lastAutoBackupAt, setLastAutoBackupAtState] = useState<string | null>(null);
   const [backupBusy, setBackupBusy] = useState(false);
 
   const [restoreError, setRestoreError] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export default function DataManagementPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLastBackupAtState(getLastBackupAt());
     setLastRestoreAtState(getLastRestoreAt());
+    setLastAutoBackupAtState(getLastAutoBackupAt());
   }, []);
 
   async function handleExportCsv() {
@@ -209,6 +212,22 @@ export default function DataManagementPage() {
           <Button onClick={handleExportBackup} disabled={backupBusy} className="mt-4">
             {backupBusy ? "書き出し中..." : "バックアップを書き出す"}
           </Button>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold text-slate-50">
+            クラウド自動バックアップ
+          </h2>
+          <p className="mt-1 text-sm text-slate-400">
+            日報・作業名を保存するたびに、自動でVercel
+            Blobへバックアップします（作業者名の設定が必要です）。
+          </p>
+          <p className="mt-2 text-sm text-slate-400">
+            最終自動バックアップ日時：
+            <span className="text-slate-200">
+              {formatDateTime(lastAutoBackupAt)}
+            </span>
+          </p>
         </Card>
 
         <Card>

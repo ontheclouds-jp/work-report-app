@@ -1,6 +1,6 @@
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
-import { calcPeriodAmounts } from "@/lib/aggregation";
+import { calcPeriodAmounts, summarizeByWorkType } from "@/lib/aggregation";
 import { getPeriodRange } from "@/lib/period";
 import type { PeriodAdjustment, WorkLog, WorkType } from "@/types";
 
@@ -68,6 +68,8 @@ export interface WorkReportPdfInput {
 interface Cell {
   text: string;
   color?: RGB;
+  span?: number; // 何列分をまたぐか（初期値1）
+  align?: Align; // 省略時は列の既定（複数列をまたぐ場合は中央）
 }
 
 function formatYen(amount: number): string {
@@ -175,47 +177,39 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
   let page!: PDFPage;
   let cursorY = 0;
 
-  function drawRow(
-    cells: Cell[],
-    rowFont: PDFFont,
-    background?: RGB,
-    spans?: number[],
-    alignOverride?: Align
-  ) {
-    // spans: 各セルが何列分をまたぐか（合計行で「合計」を複数列にまたがせるため）
-    const effectiveSpans = spans ?? cells.map(() => 1);
-    const widths: number[] = [];
-    const aligns: Align[] = [];
-    const wraps: boolean[] = [];
+  /** 行内の各セルの幅・揃え・折り返し後の行と、行の高さを求める。 */
+  function layoutRow(cells: Cell[], rowFont: PDFFont, alignOverride?: Align) {
     let colIndex = 0;
-    for (const span of effectiveSpans) {
+    const layouts = cells.map((cell) => {
+      const span = cell.span ?? 1;
       const cols = COLUMNS.slice(colIndex, colIndex + span);
-      widths.push(cols.reduce((sum, c) => sum + c.width, 0));
-      aligns.push(alignOverride ?? (span > 1 ? "center" : cols[0].align));
-      wraps.push(cols.some((c) => c.wrap));
       colIndex += span;
-    }
-
-    const lineSets = cells.map((cell, i) =>
-      wraps[i]
-        ? wrapText(cell.text, rowFont, TABLE_FONT_SIZE, widths[i] - CELL_PADDING_X * 2)
-        : [cell.text]
-    );
-    const maxLines = Math.max(...lineSets.map((l) => l.length));
+      const width = cols.reduce((sum, c) => sum + c.width, 0);
+      const align = cell.align ?? alignOverride ?? (span > 1 ? "center" : cols[0].align);
+      const lines = cols.some((c) => c.wrap)
+        ? wrapText(cell.text, rowFont, TABLE_FONT_SIZE, width - CELL_PADDING_X * 2)
+        : [cell.text];
+      return { width, align, lines };
+    });
+    const maxLines = Math.max(...layouts.map((l) => l.lines.length));
     const rowHeight = Math.max(MIN_ROW_HEIGHT, maxLines * TABLE_LINE_HEIGHT + CELL_PADDING_Y * 2 - 3);
+    return { layouts, rowHeight };
+  }
 
+  function drawRow(cells: Cell[], rowFont: PDFFont, background?: RGB, alignOverride?: Align) {
+    const { layouts, rowHeight } = layoutRow(cells, rowFont, alignOverride);
     let x = tableLeft;
     cells.forEach((cell, i) => {
+      const { width, align, lines } = layouts[i];
       page.drawRectangle({
         x,
         y: cursorY - rowHeight,
-        width: widths[i],
+        width,
         height: rowHeight,
         borderColor: COLOR_BORDER,
         borderWidth: 0.5,
         color: background,
       });
-      const lines = lineSets[i];
       // 行の高さに対して、セル内の文字ブロックを縦中央に配置する
       const blockHeight = lines.length * TABLE_LINE_HEIGHT;
       const firstBaseline =
@@ -227,27 +221,29 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
           rowFont,
           TABLE_FONT_SIZE,
           x + CELL_PADDING_X,
-          widths[i] - CELL_PADDING_X * 2,
+          width - CELL_PADDING_X * 2,
           firstBaseline - lineIndex * TABLE_LINE_HEIGHT,
-          aligns[i],
+          align,
           cell.color
         );
       });
-      x += widths[i];
+      x += width;
     });
     cursorY -= rowHeight;
-    return rowHeight;
   }
 
-  function measureRowHeight(cells: Cell[]): number {
-    const maxLines = Math.max(
-      ...cells.map((cell, i) =>
-        COLUMNS[i].wrap
-          ? wrapText(cell.text, font, TABLE_FONT_SIZE, COLUMNS[i].width - CELL_PADDING_X * 2).length
-          : 1
-      )
-    );
-    return Math.max(MIN_ROW_HEIGHT, maxLines * TABLE_LINE_HEIGHT + CELL_PADDING_Y * 2 - 3);
+  /** 残りの高さが足りなければ改ページし、見出し行を再掲する。 */
+  function ensureSpace(height: number) {
+    if (cursorY - height < MARGIN_BOTTOM) {
+      addPage();
+      drawTableHeader();
+    }
+  }
+
+  /** 改ページが必要か確認してから1行描画する。 */
+  function drawRowWithBreak(cells: Cell[], rowFont: PDFFont, background?: RGB, alignOverride?: Align) {
+    ensureSpace(layoutRow(cells, rowFont, alignOverride).rowHeight);
+    drawRow(cells, rowFont, background, alignOverride);
   }
 
   function drawTableHeader() {
@@ -255,7 +251,6 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
       COLUMNS.map((c) => ({ text: c.label })),
       bold,
       COLOR_HEADER_BG,
-      undefined,
       "center"
     );
   }
@@ -345,65 +340,67 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
       { text: formatYen(log.amount) },
     ];
 
-    if (cursorY - measureRowHeight(cells) < MARGIN_BOTTOM) {
-      addPage();
-      drawTableHeader();
-    }
-    drawRow(cells, font);
+    drawRowWithBreak(cells, font);
 
     totalHours += log.workHours;
   });
 
-  // ---- その他項目（外注費・値引きなど）：明細の後・合計行の前 ----
-  for (const adjustment of input.adjustments) {
-    const cells: Cell[] = [
-      { text: "" },
-      { text: "" },
-      { text: "" },
-      { text: "その他" },
-      { text: adjustment.name },
-      { text: "" },
-      {
-        text: formatYen(adjustment.amount),
-        color: adjustment.amount < 0 ? COLOR_NEGATIVE : undefined,
-      },
-    ];
-    if (cursorY - measureRowHeight(cells) < MARGIN_BOTTOM) {
-      addPage();
-      drawTableHeader();
-    }
-    drawRow(cells, font);
-  }
-
-  // ---- 合計・消費税・税込合計（3行を同じページにまとめる） ----
   const amounts = calcPeriodAmounts(input.logs, input.adjustments);
-  if (cursorY - MIN_ROW_HEIGHT * 3 < MARGIN_BOTTOM) {
-    addPage();
-    drawTableHeader();
-  }
-  drawRow(
+
+  // ---- 合計 ----
+  drawRowWithBreak(
     [
-      { text: "合計" },
+      { text: "合計", span: 4 },
       { text: formatHoursShort(Math.round(totalHours * 100) / 100) },
       { text: "" },
       { text: formatYen(amounts.subtotal) },
     ],
     bold,
-    COLOR_TOTAL_BG,
-    [4, 1, 1, 1]
+    COLOR_TOTAL_BG
   );
+
+  // ---- 業務内容（作業名）別小計：ホーム画面・締め期間集計画面と同じく金額の大きい順 ----
+  for (const item of summarizeByWorkType(input.logs, input.workTypes)) {
+    drawRowWithBreak(
+      [
+        { text: "小計", span: 3 },
+        { text: item.workTypeName },
+        { text: formatHoursShort(Math.round(item.hours * 100) / 100) },
+        { text: "" },
+        { text: formatYen(item.amount) },
+      ],
+      font
+    );
+  }
+
+  // ---- その他項目（外注費・値引きなど）：業務内容別小計の下 ----
+  for (const adjustment of input.adjustments) {
+    drawRowWithBreak(
+      [
+        { text: "その他", span: 3 },
+        { text: adjustment.name, span: 2, align: "left" },
+        { text: "" },
+        {
+          text: formatYen(adjustment.amount),
+          color: adjustment.amount < 0 ? COLOR_NEGATIVE : undefined,
+        },
+      ],
+      font
+    );
+  }
+
+  // ---- 消費税・税込合計（2行を同じページにまとめる） ----
+  ensureSpace(MIN_ROW_HEIGHT * 2);
   drawRow(
-    [{ text: "消費税（10%）" }, { text: formatYen(amounts.tax) }],
+    [{ text: "消費税（10%）", span: 6 }, { text: formatYen(amounts.tax) }],
     font,
     undefined,
-    [6, 1],
     "right"
   );
   drawRow(
-    [{ text: "税込合計" }, { text: formatYen(amounts.totalWithTax) }],
+    [{ text: "税込合計", span: 6 }, { text: formatYen(amounts.totalWithTax) }],
     bold,
     COLOR_TOTAL_BG,
-    [6, 1],
     "right"
   );
 

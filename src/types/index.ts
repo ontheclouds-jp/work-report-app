@@ -52,6 +52,18 @@ export type WorkLogInput = Omit<
   | "updatedAt"
 >;
 
+/** 締め期間（月度）ごとの「その他」項目（外注費・値引きなど、日報とは別の金額調整） */
+export interface PeriodAdjustment {
+  id: string;
+  periodLabel: string; // YYYY-MM
+  name: string;
+  amount: number; // yen, integer; negative for discounts/offsets
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PeriodAdjustmentInput = Pick<PeriodAdjustment, "name" | "amount">;
+
 export interface AppSettings {
   id: string; // fixed singleton id "default"
   defaultStartTime?: string; // HH:mm, initial value proposal for 日報入力画面

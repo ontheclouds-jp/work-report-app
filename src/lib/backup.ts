@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/lib/db/db";
-import type { AppSettings, WorkType, WorkLog } from "@/types";
+import type { AppSettings, PeriodAdjustment, WorkType, WorkLog } from "@/types";
 
 const BACKUP_VERSION = 1;
 const LAST_BACKUP_KEY = "workReportApp:lastBackupAt";
@@ -12,13 +12,15 @@ export interface BackupData {
   workTypes: WorkType[];
   workLogs: WorkLog[];
   appSettings?: AppSettings;
+  periodAdjustments?: PeriodAdjustment[];
 }
 
 export async function buildBackupData(): Promise<BackupData> {
-  const [workTypes, workLogs, appSettings] = await Promise.all([
+  const [workTypes, workLogs, appSettings, periodAdjustments] = await Promise.all([
     db.workTypes.toArray(),
     db.workLogs.toArray(),
     db.appSettings.get("default"),
+    db.periodAdjustments.toArray(),
   ]);
   return {
     version: BACKUP_VERSION,
@@ -26,6 +28,7 @@ export async function buildBackupData(): Promise<BackupData> {
     workTypes,
     workLogs,
     appSettings,
+    periodAdjustments,
   };
 }
 
@@ -89,12 +92,23 @@ const appSettingsBackupSchema = z.object({
   updatedAt: z.string(),
 });
 
+const periodAdjustmentBackupSchema = z.object({
+  id: z.string(),
+  periodLabel: z.string(),
+  name: z.string(),
+  amount: z.number(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 const backupSchema = z.object({
   version: z.number(),
   exportedAt: z.string(),
   workTypes: z.array(workTypeBackupSchema),
   workLogs: z.array(workLogBackupSchema),
   appSettings: appSettingsBackupSchema.optional(),
+  // v1.0.6より前のバックアップには含まれないため任意
+  periodAdjustments: z.array(periodAdjustmentBackupSchema).optional(),
 });
 
 /** JSONテキストをバックアップデータとして検証・変換する。形式が不正な場合は例外を投げる。 */
@@ -114,10 +128,12 @@ export function parseBackupFile(jsonText: string): BackupData {
 
 /** バックアップデータで全データを置き換える。既存データは失われる。 */
 export async function restoreFromBackup(data: BackupData): Promise<void> {
-  await db.transaction("rw", db.workTypes, db.workLogs, db.appSettings, async () => {
+  const tables = [db.workTypes, db.workLogs, db.appSettings, db.periodAdjustments];
+  await db.transaction("rw", tables, async () => {
     await db.workTypes.clear();
     await db.workLogs.clear();
     await db.appSettings.clear();
+    await db.periodAdjustments.clear();
     if (data.workTypes.length > 0) {
       await db.workTypes.bulkAdd(data.workTypes);
     }
@@ -127,14 +143,19 @@ export async function restoreFromBackup(data: BackupData): Promise<void> {
     if (data.appSettings) {
       await db.appSettings.add(data.appSettings);
     }
+    if (data.periodAdjustments && data.periodAdjustments.length > 0) {
+      await db.periodAdjustments.bulkAdd(data.periodAdjustments);
+    }
   });
   setLastRestoreAt(new Date().toISOString());
 }
 
 export async function deleteAllData(): Promise<void> {
-  await db.transaction("rw", db.workTypes, db.workLogs, db.appSettings, async () => {
+  const tables = [db.workTypes, db.workLogs, db.appSettings, db.periodAdjustments];
+  await db.transaction("rw", tables, async () => {
     await db.workTypes.clear();
     await db.workLogs.clear();
     await db.appSettings.clear();
+    await db.periodAdjustments.clear();
   });
 }

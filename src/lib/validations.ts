@@ -1,6 +1,20 @@
 import { z } from "zod";
 import { calcRawDuration, calcWorkHours } from "./calculations";
 
+export const periodAdjustmentFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "項目名を入力してください")
+    .max(100, "項目名は100文字以内で入力してください"),
+  amount: z
+    .number({ error: "金額を入力してください" })
+    .int("金額は円単位の整数で入力してください")
+    .refine((v) => v !== 0, "0円以外の金額を入力してください"),
+});
+
+export type PeriodAdjustmentFormValues = z.infer<typeof periodAdjustmentFormSchema>;
+
 export const workTypeStatusSchema = z.enum(["active", "paused", "ended"]);
 
 export const workTypeFormSchema = z.object({

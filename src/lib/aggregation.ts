@@ -1,4 +1,5 @@
-import type { WorkLog, WorkType } from "@/types";
+import { calcConsumptionTax } from "@/lib/calculations";
+import type { PeriodAdjustment, WorkLog, WorkType } from "@/types";
 
 export interface PeriodTotals {
   amount: number;
@@ -20,6 +21,26 @@ export function summarizeLogs(logs: WorkLog[]): PeriodTotals {
     }),
     emptyTotals()
   );
+}
+
+export interface PeriodAmountBreakdown {
+  workAmount: number; // 日報の合計
+  otherAmount: number; // 「その他」項目の合計（マイナス含む）
+  subtotal: number; // 税抜合計 = workAmount + otherAmount
+  tax: number; // 消費税（10%、円未満切り捨て）
+  totalWithTax: number; // 税込合計
+}
+
+/** 日報と「その他」項目から、締め期間の金額内訳（税抜・消費税・税込）を計算する。 */
+export function calcPeriodAmounts(
+  logs: WorkLog[],
+  adjustments: PeriodAdjustment[]
+): PeriodAmountBreakdown {
+  const workAmount = logs.reduce((sum, log) => sum + log.amount, 0);
+  const otherAmount = adjustments.reduce((sum, a) => sum + a.amount, 0);
+  const subtotal = workAmount + otherAmount;
+  const tax = calcConsumptionTax(subtotal);
+  return { workAmount, otherAmount, subtotal, tax, totalWithTax: subtotal + tax };
 }
 
 export interface WorkTypeSummary extends PeriodTotals {

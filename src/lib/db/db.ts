@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { AppSettings, WorkType, WorkLog } from "@/types";
+import type { AppSettings, PeriodAdjustment, WorkType, WorkLog } from "@/types";
 import {
   calcAmount,
   calcOvertimeSplit,
@@ -12,6 +12,7 @@ class WorkReportDatabase extends Dexie {
   workTypes!: EntityTable<WorkType, "id">;
   workLogs!: EntityTable<WorkLog, "id">;
   appSettings!: EntityTable<AppSettings, "id">;
+  periodAdjustments!: EntityTable<PeriodAdjustment, "id">;
 
   constructor() {
     super("WorkReportDatabase");
@@ -89,6 +90,9 @@ class WorkReportDatabase extends Dexie {
           log.overtimeHours = overtimeHours;
           log.amount = calcAmount(regularHours, overtimeHours, hourlyRate, dayMultiplier);
         });
+    });
+    this.version(5).stores({
+      periodAdjustments: "id, periodLabel, createdAt",
     });
   }
 }

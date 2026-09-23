@@ -7,7 +7,12 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { db } from "@/lib/db/db";
 import { formatCurrency, formatHours } from "@/lib/calculations";
-import { summarizeByDate, summarizeByWorkType, summarizeLogs } from "@/lib/aggregation";
+import {
+  calcPeriodAmounts,
+  summarizeByDate,
+  summarizeByWorkType,
+  summarizeLogs,
+} from "@/lib/aggregation";
 import { workLogsToCsv } from "@/lib/csv";
 import { triggerFileDownload } from "@/lib/download";
 import {
@@ -19,6 +24,8 @@ import {
 } from "@/lib/period";
 import { Select } from "@/components/ui/Select";
 import { PdfExportControls } from "@/components/pdf/PdfExportControls";
+import { PeriodAdjustmentSection } from "@/components/periods/PeriodAdjustmentSection";
+import { listPeriodAdjustments } from "@/lib/repositories/periodAdjustmentRepository";
 
 const RECENT_PERIOD_COUNT = 24;
 
@@ -31,20 +38,31 @@ export default function PeriodsPage() {
     () => db.workLogs.orderBy("periodLabel").uniqueKeys(),
     []
   ) as string[] | undefined;
+  const adjustmentPeriodLabels = useLiveQuery(
+    () => db.periodAdjustments.orderBy("periodLabel").uniqueKeys(),
+    []
+  ) as string[] | undefined;
 
   const availablePeriods = useMemo(() => {
     const set = new Set<string>(listRecentPeriodLabels(RECENT_PERIOD_COUNT));
     for (const label of existingPeriodLabels ?? []) set.add(label);
+    for (const label of adjustmentPeriodLabels ?? []) set.add(label);
     return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
-  }, [existingPeriodLabels]);
+  }, [existingPeriodLabels, adjustmentPeriodLabels]);
 
   const logs = useLiveQuery(
     () => db.workLogs.where("periodLabel").equals(selectedPeriod).toArray(),
     [selectedPeriod]
   );
   const workTypes = useLiveQuery(() => db.workTypes.toArray(), []);
+  const adjustments = useLiveQuery(
+    () => listPeriodAdjustments(selectedPeriod),
+    [selectedPeriod]
+  );
 
   const totals = summarizeLogs(logs ?? []);
+  const amounts = calcPeriodAmounts(logs ?? [], adjustments ?? []);
+  const hasPdfContent = (logs ?? []).length > 0 || (adjustments ?? []).length > 0;
   const byWorkType = summarizeByWorkType(logs ?? [], workTypes ?? []);
   const byDate = summarizeByDate(logs ?? []);
 
@@ -93,11 +111,36 @@ export default function PeriodsPage() {
           {getPeriodRangeDisplayLabel(selectedPeriod)}）
         </p>
         <p className="mt-1 text-3xl font-bold text-amber-400">
-          {formatCurrency(totals.amount)}
+          {formatCurrency(amounts.subtotal)}
+          <span className="ml-1 text-base font-medium text-slate-400">（税抜）</span>
         </p>
         <p className="mt-1 text-base text-slate-400">
           {formatHours(totals.hours)}　{totals.count}件
         </p>
+        <dl className="mx-auto mt-3 flex max-w-xs flex-col gap-1 border-t border-slate-700 pt-3 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-slate-400">作業分</dt>
+            <dd className="text-slate-200">{formatCurrency(amounts.workAmount)}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-slate-400">その他</dt>
+            <dd className={amounts.otherAmount < 0 ? "text-rose-400" : "text-slate-200"}>
+              {formatCurrency(amounts.otherAmount)}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-slate-400">合計（税抜）</dt>
+            <dd className="text-slate-200">{formatCurrency(amounts.subtotal)}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-slate-400">消費税（10%）</dt>
+            <dd className="text-slate-200">{formatCurrency(amounts.tax)}</dd>
+          </div>
+          <div className="flex justify-between font-semibold">
+            <dt className="text-slate-300">税込合計</dt>
+            <dd className="text-amber-400">{formatCurrency(amounts.totalWithTax)}</dd>
+          </div>
+        </dl>
         <div className="mx-auto mt-4 flex max-w-xs flex-col gap-2">
           <Button
             variant="secondary"
@@ -108,11 +151,17 @@ export default function PeriodsPage() {
           </Button>
           <PdfExportControls
             periodLabel={selectedPeriod}
-            disabled={(logs ?? []).length === 0}
+            disabled={!hasPdfContent}
             buttonLabel="この期間をPDF出力"
           />
         </div>
       </Card>
+
+      <PeriodAdjustmentSection
+        key={selectedPeriod}
+        periodLabel={selectedPeriod}
+        adjustments={adjustments ?? []}
+      />
 
       <div className="mt-6">
         <h2 className="mb-2 text-lg font-semibold text-slate-50">作業名別内訳</h2>

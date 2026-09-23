@@ -112,6 +112,13 @@ export function calcAmount(
   return Math.round(regularAmount + overtimeAmount);
 }
 
+export const CONSUMPTION_TAX_RATE_PERCENT = 10;
+
+/** 税抜金額から消費税（10%、円未満切り捨て）を計算する。浮動小数の誤差を避けるため整数演算で行う。 */
+export function calcConsumptionTax(amountExcludingTax: number): number {
+  return Math.floor((Math.round(amountExcludingTax) * CONSUMPTION_TAX_RATE_PERCENT) / 100);
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("ja-JP").format(amount) + "円";
 }

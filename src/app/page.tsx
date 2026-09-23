@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/Card";
 import { db } from "@/lib/db/db";
 import { getLastAutoBackupAt, triggerAutoBackup } from "@/lib/autoBackup";
 import { formatCurrency, formatHours } from "@/lib/calculations";
-import { summarizeByWorkType, summarizeLogs } from "@/lib/aggregation";
+import { calcPeriodAmounts, summarizeByWorkType, summarizeLogs } from "@/lib/aggregation";
+import { listPeriodAdjustments } from "@/lib/repositories/periodAdjustmentRepository";
 import {
   getCurrentPeriodLabel,
   getDaysUntilClosing,
@@ -57,6 +58,10 @@ export default function HomePage() {
     [currentPeriodLabel]
   );
   const workTypes = useLiveQuery(() => db.workTypes.toArray(), []);
+  const periodAdjustments = useLiveQuery(
+    () => listPeriodAdjustments(currentPeriodLabel),
+    [currentPeriodLabel]
+  );
   const workTypeNameById = new Map(workTypes?.map((w) => [w.id, w.name]) ?? []);
   const totalLogCount = useLiveQuery(() => db.workLogs.count(), []);
 
@@ -69,6 +74,7 @@ export default function HomePage() {
     totalLogCount === 0;
 
   const periodTotals = summarizeLogs(periodLogs ?? []);
+  const periodAmounts = calcPeriodAmounts(periodLogs ?? [], periodAdjustments ?? []);
   const periodByWorkType = summarizeByWorkType(periodLogs ?? [], workTypes ?? []);
   const daysUntilClosing = getDaysUntilClosing(currentPeriodLabel);
 
@@ -141,16 +147,20 @@ export default function HomePage() {
           {getPeriodRangeDisplayLabel(currentPeriodLabel)}）の累計
         </p>
         <p className="mt-1 text-2xl font-bold text-amber-400">
-          {formatCurrency(periodTotals.amount)}
+          {formatCurrency(periodAmounts.subtotal)}
           <span className="ml-2 text-base font-medium text-slate-400">
             （{formatHours(periodTotals.hours)}）
           </span>
+        </p>
+        <p className="mt-1 text-sm text-slate-400">
+          税込 {formatCurrency(periodAmounts.totalWithTax)}（消費税{" "}
+          {formatCurrency(periodAmounts.tax)}）
         </p>
         <p className={`mt-1 text-sm ${closingUrgencyClass(daysUntilClosing)}`}>
           {closingMessage(daysUntilClosing)}
         </p>
 
-        {periodByWorkType.length > 0 && (
+        {(periodByWorkType.length > 0 || (periodAdjustments ?? []).length > 0) && (
           <ul className="mt-4 flex flex-col gap-2 border-t border-slate-700 pt-3">
             {periodByWorkType.map((item) => (
               <li
@@ -166,6 +176,20 @@ export default function HomePage() {
                 </span>
               </li>
             ))}
+            {(periodAdjustments ?? []).length > 0 && (
+              <li className="flex items-center justify-between text-sm">
+                <span className="text-slate-300">
+                  その他（{periodAdjustments!.length}件）
+                </span>
+                <span
+                  className={`font-medium ${
+                    periodAmounts.otherAmount < 0 ? "text-rose-400" : "text-amber-400"
+                  }`}
+                >
+                  {formatCurrency(periodAmounts.otherAmount)}
+                </span>
+              </li>
+            )}
           </ul>
         )}
 

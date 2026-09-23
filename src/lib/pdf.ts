@@ -1,7 +1,8 @@
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import { calcPeriodAmounts } from "@/lib/aggregation";
 import { getPeriodRange } from "@/lib/period";
-import type { WorkLog, WorkType } from "@/types";
+import type { PeriodAdjustment, WorkLog, WorkType } from "@/types";
 
 // 日本語を正しく表示するため、BIZ UDゴシック（SIL Open Font License）を埋め込む。
 // subset: true で実際に使った文字だけを埋め込むので、PDF自体は小さく保たれる。
@@ -29,6 +30,7 @@ const COLOR_HEADER_BG = rgb(0.9, 0.9, 0.9);
 const COLOR_TOTAL_BG = rgb(0.95, 0.95, 0.95);
 const COLOR_SATURDAY = rgb(0.1, 0.3, 0.75);
 const COLOR_SUNDAY = rgb(0.8, 0.1, 0.1);
+const COLOR_NEGATIVE = rgb(0.8, 0.1, 0.1);
 
 type Align = "left" | "center" | "right";
 
@@ -56,6 +58,7 @@ export interface WorkReportPdfInput {
   periodLabel: string; // YYYY-MM
   logs: WorkLog[];
   workTypes: WorkType[];
+  adjustments: PeriodAdjustment[]; // 「その他」項目（登録順）
   recipient?: string;
   companyName?: string;
   personName?: string;
@@ -317,7 +320,6 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
   drawTableHeader();
 
   let totalHours = 0;
-  let totalAmount = 0;
 
   sortedLogs.forEach((log, index) => {
     const weekday = getWeekday(log.workDate);
@@ -350,11 +352,32 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     drawRow(cells, font);
 
     totalHours += log.workHours;
-    totalAmount += log.amount;
   });
 
-  // ---- 合計行 ----
-  if (cursorY - MIN_ROW_HEIGHT < MARGIN_BOTTOM) {
+  // ---- その他項目（外注費・値引きなど）：明細の後・合計行の前 ----
+  for (const adjustment of input.adjustments) {
+    const cells: Cell[] = [
+      { text: "" },
+      { text: "" },
+      { text: "" },
+      { text: "その他" },
+      { text: adjustment.name },
+      { text: "" },
+      {
+        text: formatYen(adjustment.amount),
+        color: adjustment.amount < 0 ? COLOR_NEGATIVE : undefined,
+      },
+    ];
+    if (cursorY - measureRowHeight(cells) < MARGIN_BOTTOM) {
+      addPage();
+      drawTableHeader();
+    }
+    drawRow(cells, font);
+  }
+
+  // ---- 合計・消費税・税込合計（3行を同じページにまとめる） ----
+  const amounts = calcPeriodAmounts(input.logs, input.adjustments);
+  if (cursorY - MIN_ROW_HEIGHT * 3 < MARGIN_BOTTOM) {
     addPage();
     drawTableHeader();
   }
@@ -363,11 +386,25 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
       { text: "合計" },
       { text: formatHoursShort(Math.round(totalHours * 100) / 100) },
       { text: "" },
-      { text: formatYen(totalAmount) },
+      { text: formatYen(amounts.subtotal) },
     ],
     bold,
     COLOR_TOTAL_BG,
     [4, 1, 1, 1]
+  );
+  drawRow(
+    [{ text: "消費税（10%）" }, { text: formatYen(amounts.tax) }],
+    font,
+    undefined,
+    [6, 1],
+    "right"
+  );
+  drawRow(
+    [{ text: "税込合計" }, { text: formatYen(amounts.totalWithTax) }],
+    bold,
+    COLOR_TOTAL_BG,
+    [6, 1],
+    "right"
   );
 
   // ---- ページ番号 ----

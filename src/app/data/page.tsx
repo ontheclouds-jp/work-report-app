@@ -65,15 +65,23 @@ export default function DataManagementPage() {
 
   const [csvPeriod, setCsvPeriod] = useState<string>(PERIOD_ALL);
   const [csvBusy, setCsvBusy] = useState(false);
-  // PDFは日報がある月度だけを選べるようにする（現在の月度は日報がなくても初期選択として含める）
+  // PDFは日報か「その他」項目がある月度だけを選べるようにする（現在の月度はなくても初期選択として含める）
+  const adjustmentPeriodLabels = useLiveQuery(
+    () => db.periodAdjustments.orderBy("periodLabel").uniqueKeys(),
+    []
+  ) as string[] | undefined;
   const pdfPeriodOptions = useMemo(() => {
     const set = new Set<string>([getCurrentPeriodLabel()]);
     for (const label of existingPeriodLabels ?? []) set.add(label);
+    for (const label of adjustmentPeriodLabels ?? []) set.add(label);
     return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
-  }, [existingPeriodLabels]);
+  }, [existingPeriodLabels, adjustmentPeriodLabels]);
   const [pdfPeriod, setPdfPeriod] = useState<string>(() => getCurrentPeriodLabel());
+  // 日報と「その他」項目の件数（どちらもなければPDF出力できない）
   const pdfLogCount = useLiveQuery(
-    () => db.workLogs.where("periodLabel").equals(pdfPeriod).count(),
+    async () =>
+      (await db.workLogs.where("periodLabel").equals(pdfPeriod).count()) +
+      (await db.periodAdjustments.where("periodLabel").equals(pdfPeriod).count()),
     [pdfPeriod]
   );
 

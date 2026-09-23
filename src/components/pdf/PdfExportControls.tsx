@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/Select";
 import { db } from "@/lib/db/db";
 import { triggerFileDownload } from "@/lib/download";
 import { getPeriodDisplayLabel } from "@/lib/period";
+import { listPeriodAdjustments } from "@/lib/repositories/periodAdjustmentRepository";
 import { getAppSettings } from "@/lib/repositories/settingsRepository";
 
 interface PdfExportControlsProps {
@@ -46,9 +47,10 @@ export function PdfExportControls({
     setBusy(true);
     setError(null);
     try {
-      const [logs, workTypes, latestSettings] = await Promise.all([
+      const [logs, workTypes, adjustments, latestSettings] = await Promise.all([
         db.workLogs.where("periodLabel").equals(periodLabel).toArray(),
         db.workTypes.toArray(),
+        listPeriodAdjustments(periodLabel),
         getAppSettings(),
       ]);
       // pdf-libと日本語フォントは大きいため、出力時にだけ読み込む
@@ -57,6 +59,7 @@ export function PdfExportControls({
         periodLabel,
         logs,
         workTypes,
+        adjustments,
         recipient,
         companyName: latestSettings?.pdfCompanyName,
         personName: latestSettings?.pdfPersonName,

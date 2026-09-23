@@ -287,12 +287,11 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     });
   }
 
-  // 右側：作成日・年・会社名・氏名
+  // 右側：作成日・会社名・氏名（作成日に年が含まれるため、年だけの行は記載しない）
   const infoSize = 10;
   const infoLineHeight = 16;
   const infoLines = [
     `作成日　${formatJapaneseDate(toISODate(input.createdDate))}`,
-    `${periodYear}年`,
     input.companyName ?? "",
     input.personName ?? "",
   ].filter((line) => line !== "");

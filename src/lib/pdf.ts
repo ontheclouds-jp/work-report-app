@@ -2,6 +2,7 @@ import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { calcPeriodAmounts, summarizeByWorkType } from "@/lib/aggregation";
 import { getPeriodRange } from "@/lib/period";
+import { formatRecipientForPdf } from "@/lib/pdfRecipient";
 import type { PdfTaxMode, PeriodAdjustment, WorkLog, WorkType } from "@/types";
 
 // 日本語を正しく表示するため、BIZ UDゴシック（SIL Open Font License）を埋め込む。
@@ -59,7 +60,7 @@ export interface WorkReportPdfInput {
   logs: WorkLog[];
   workTypes: WorkType[];
   adjustments: PeriodAdjustment[]; // 「その他」項目（登録順）
-  recipient?: string;
+  recipient?: string; // 会社名のみ（「御中」はPDF上で自動で付ける）
   companyName?: string;
   personName?: string;
   taxMode: PdfTaxMode; // 外税：消費税・税込合計を記載／内税：税額計算をせず合計で終える
@@ -271,12 +272,13 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
 
   const headerTop = cursorY;
 
-  // 左側：宛先（下線付き）
+  // 左側：宛先（会社名＋「御中」、下線付き）
   if (input.recipient) {
+    const recipientText = formatRecipientForPdf(input.recipient);
     const recipientSize = 14;
     const recipientY = headerTop - recipientSize;
-    page.drawText(input.recipient, { x: tableLeft, y: recipientY, size: recipientSize, font: bold, color: COLOR_TEXT });
-    const underlineWidth = Math.max(bold.widthOfTextAtSize(input.recipient, recipientSize), 180);
+    page.drawText(recipientText, { x: tableLeft, y: recipientY, size: recipientSize, font: bold, color: COLOR_TEXT });
+    const underlineWidth = Math.max(bold.widthOfTextAtSize(recipientText, recipientSize), 180);
     page.drawLine({
       start: { x: tableLeft, y: recipientY - 4 },
       end: { x: tableLeft + underlineWidth, y: recipientY - 4 },

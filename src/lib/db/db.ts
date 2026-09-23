@@ -7,6 +7,7 @@ import {
   getDayType,
   DAY_MULTIPLIERS,
 } from "@/lib/calculations";
+import { normalizeRecipientSettings } from "@/lib/pdfRecipient";
 
 class WorkReportDatabase extends Dexie {
   workTypes!: EntityTable<WorkType, "id">;
@@ -93,6 +94,16 @@ class WorkReportDatabase extends Dexie {
     });
     this.version(5).stores({
       periodAdjustments: "id, periodLabel, createdAt",
+    });
+    this.version(6).stores({}).upgrade(async (tx) => {
+      // PDFの宛先に「御中」を自動で付ける仕様に変更したため、敬称込みで登録されていた
+      // 既存の宛先（例：「○○様」）から末尾の「様」「御中」を一度だけ取り除く。
+      await tx
+        .table("appSettings")
+        .toCollection()
+        .modify((settings: AppSettings) => {
+          Object.assign(settings, normalizeRecipientSettings(settings));
+        });
     });
   }
 }

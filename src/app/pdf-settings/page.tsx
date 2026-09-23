@@ -11,6 +11,7 @@ import {
   getAppSettings,
   updateAppSettings,
 } from "@/lib/repositories/settingsRepository";
+import { stripRecipientHonorific } from "@/lib/pdfRecipient";
 import { PDF_TAX_MODE_LABEL, type PdfTaxMode } from "@/types";
 
 interface RecipientRow {
@@ -70,10 +71,10 @@ export default function PdfSettingsPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      // 空欄と重複を取り除いて保存する（重複した宛先は先に入力した行の税区分を使う）
+      // 敬称（「様」「御中」）・空欄・重複を取り除いて保存する（重複した宛先は先に入力した行の税区分を使う）
       const cleanedRecipients: RecipientRow[] = [];
       for (const row of recipients) {
-        const name = row.name.trim();
+        const name = stripRecipientHonorific(row.name);
         if (name !== "" && !cleanedRecipients.some((r) => r.name === name)) {
           cleanedRecipients.push({ name, taxMode: row.taxMode });
         }
@@ -106,7 +107,7 @@ export default function PdfSettingsPage() {
           <Card>
             <h2 className="text-lg font-semibold text-slate-50">宛先</h2>
             <p className="mt-1 text-sm text-slate-400">
-              取引先名などを入力します。入力した文字はそのままPDFに記載されます。複数登録すると、PDF出力時にどの宛先を使うか選べます。
+              会社名のみ入力してください（「御中」は自動で付きます）。例：「ＹＮエンジニアリング」と入力すると、PDFには「ＹＮエンジニアリング御中」と記載されます。複数登録すると、PDF出力時にどの宛先を使うか選べます。
             </p>
             <p className="mt-1 text-sm text-slate-400">
               税区分は宛先ごとに選べます。「外税」は日報の金額を税抜として消費税・税込合計を記載し、「内税」は消費税の計算をせず、入力した金額をそのまま合計して記載します。
@@ -118,7 +119,7 @@ export default function PdfSettingsPage() {
                     aria-label={`宛先${index + 1}`}
                     value={recipient.name}
                     onChange={(e) => updateRecipient(index, { name: e.target.value })}
-                    placeholder="例：○○様作業"
+                    placeholder="例：ＹＮエンジニアリング"
                     className="min-w-0 flex-1"
                   />
                   <Select

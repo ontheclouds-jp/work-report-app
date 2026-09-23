@@ -1,10 +1,15 @@
 // アプリのバージョン情報。私（Claude Code）が更新作業を行うたびに、
 // このバージョン番号と最終更新日を新しい値に更新する。
-export const APP_VERSION = "v1.0.9";
+export const APP_VERSION = "v1.0.10";
 export const APP_LAST_UPDATED = "2026-09-23";
 
 // 更新履歴（新しい順）。バージョンを上げるときは先頭に1件追加する。
 export const APP_CHANGELOG: { version: string; date: string; description: string }[] = [
+  {
+    version: "v1.0.10",
+    date: "2026-09-23",
+    description: "宛先欄をPDF表示時に自動で『御中』を付ける仕様に変更",
+  },
   {
     version: "v1.0.9",
     date: "2026-09-23",

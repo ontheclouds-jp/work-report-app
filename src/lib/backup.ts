@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { db } from "@/lib/db/db";
+import { normalizeRecipientSettings } from "@/lib/pdfRecipient";
 import type { AppSettings, PeriodAdjustment, WorkType, WorkLog } from "@/types";
 
 const BACKUP_VERSION = 1;
@@ -142,7 +143,11 @@ export async function restoreFromBackup(data: BackupData): Promise<void> {
       await db.workLogs.bulkAdd(data.workLogs);
     }
     if (data.appSettings) {
-      await db.appSettings.add(data.appSettings);
+      // 旧バージョンのバックアップは宛先に敬称を含むため、現在の仕様に合わせて整形する
+      await db.appSettings.add({
+        ...data.appSettings,
+        ...normalizeRecipientSettings(data.appSettings),
+      });
     }
     if (data.periodAdjustments && data.periodAdjustments.length > 0) {
       await db.periodAdjustments.bulkAdd(data.periodAdjustments);

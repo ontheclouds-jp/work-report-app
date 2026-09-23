@@ -56,6 +56,9 @@ export interface AppSettings {
   id: string; // fixed singleton id "default"
   defaultStartTime?: string; // HH:mm, initial value proposal for 日報入力画面
   defaultEndTime?: string; // HH:mm, initial value proposal for 日報入力画面 (falls back to DEFAULT_END_TIME)
+  pdfRecipients?: string[]; // PDF出力の宛先（複数登録可）
+  pdfCompanyName?: string; // PDF出力の会社名
+  pdfPersonName?: string; // PDF出力の氏名
   updatedAt: string;
 }
 

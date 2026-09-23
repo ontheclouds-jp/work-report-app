@@ -1,5 +1,5 @@
 export function triggerFileDownload(
-  content: string,
+  content: BlobPart,
   filename: string,
   mimeType: string
 ): void {

@@ -18,6 +18,7 @@ import {
   shiftPeriodLabel,
 } from "@/lib/period";
 import { Select } from "@/components/ui/Select";
+import { PdfExportControls } from "@/components/pdf/PdfExportControls";
 
 const RECENT_PERIOD_COUNT = 24;
 
@@ -97,14 +98,20 @@ export default function PeriodsPage() {
         <p className="mt-1 text-base text-slate-400">
           {formatHours(totals.hours)}　{totals.count}件
         </p>
-        <Button
-          variant="secondary"
-          className="mt-4"
-          onClick={handleExportCsv}
-          disabled={(logs ?? []).length === 0}
-        >
-          この期間をCSV書き出し
-        </Button>
+        <div className="mx-auto mt-4 flex max-w-xs flex-col gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleExportCsv}
+            disabled={(logs ?? []).length === 0}
+          >
+            この期間をCSV書き出し
+          </Button>
+          <PdfExportControls
+            periodLabel={selectedPeriod}
+            disabled={(logs ?? []).length === 0}
+            buttonLabel="この期間をPDF出力"
+          />
+        </div>
       </Card>
 
       <div className="mt-6">

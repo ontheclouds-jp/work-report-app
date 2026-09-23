@@ -160,6 +160,12 @@ export default function SettingsPage() {
           </Button>
         </Link>
 
+        <Link href="/pdf-settings">
+          <Button variant="secondary" fullWidth>
+            PDF出力設定（宛先・会社名・氏名）
+          </Button>
+        </Link>
+
         <Link href="/help">
           <Button variant="secondary" fullWidth>
             ヘルプ（使い方・バージョン情報）

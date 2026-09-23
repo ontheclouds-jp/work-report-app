@@ -1,6 +1,8 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { APP_LAST_UPDATED, APP_VERSION } from "@/lib/version";
+import { APP_CHANGELOG, APP_LAST_UPDATED, APP_VERSION } from "@/lib/version";
 
 interface GuideStep {
   title: string;
@@ -36,6 +38,10 @@ const GUIDE_STEPS: GuideStep[] = [
   {
     title: "5. データを送るとき",
     body: "設定画面の「データ管理」から、CSVまたはJSON形式で書き出して、担当者に送ってください。",
+  },
+  {
+    title: "6. 日報をPDFで提出するとき",
+    body: "先に「PDF出力設定」で宛先・会社名・氏名を登録してください。その後、「締め期間集計」画面または「データ管理」画面で期間を選び、「PDF出力」ボタンを押すと、A4サイズの業務日報PDFが保存されます。",
   },
 ];
 
@@ -91,6 +97,27 @@ export default function HelpPage() {
             </div>
           </dl>
         </Card>
+
+        <Card>
+          <h2 className="mb-3 text-lg font-semibold text-slate-50">更新履歴</h2>
+          <ul className="flex flex-col gap-3 text-sm">
+            {APP_CHANGELOG.map((entry) => (
+              <li key={entry.version}>
+                <p className="text-slate-400">
+                  <span className="font-semibold text-slate-100">{entry.version}</span>
+                  （{entry.date}）
+                </p>
+                <p className="mt-0.5 text-slate-300">{entry.description}</p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Link href="/pdf-settings">
+          <Button variant="secondary" fullWidth>
+            PDF出力設定（宛先・会社名・氏名）
+          </Button>
+        </Link>
       </div>
     </div>
   );

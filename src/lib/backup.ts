@@ -83,6 +83,9 @@ const appSettingsBackupSchema = z.object({
   id: z.string(),
   defaultStartTime: z.string().optional(),
   defaultEndTime: z.string().optional(),
+  pdfRecipients: z.array(z.string()).optional(),
+  pdfCompanyName: z.string().optional(),
+  pdfPersonName: z.string().optional(),
   updatedAt: z.string(),
 });
 

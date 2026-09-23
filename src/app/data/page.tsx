@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PdfExportControls } from "@/components/pdf/PdfExportControls";
 import { db } from "@/lib/db/db";
 import { workLogsToCsv } from "@/lib/csv";
 import { triggerFileDownload } from "@/lib/download";
@@ -62,6 +64,11 @@ export default function DataManagementPage() {
 
   const [csvPeriod, setCsvPeriod] = useState<string>(PERIOD_ALL);
   const [csvBusy, setCsvBusy] = useState(false);
+  const [pdfPeriod, setPdfPeriod] = useState<string>(() => getCurrentPeriodLabel());
+  const pdfLogCount = useLiveQuery(
+    () => db.workLogs.where("periodLabel").equals(pdfPeriod).count(),
+    [pdfPeriod]
+  );
 
   const [lastBackupAt, setLastBackupAtState] = useState<string | null>(null);
   const [lastRestoreAt, setLastRestoreAtState] = useState<string | null>(null);
@@ -196,6 +203,39 @@ export default function DataManagementPage() {
               {csvBusy ? "書き出し中..." : "CSVを書き出す"}
             </Button>
           </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold text-slate-50">PDF書き出し</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            締め期間の日報一覧を、提出用の業務日報（A4）としてPDFで書き出します。ヘッダーの宛先・会社名・氏名は
+            <Link href="/pdf-settings" className="text-blue-400 underline">
+              PDF出力設定
+            </Link>
+            で登録できます。
+          </p>
+          <div className="mt-4 flex flex-col gap-3">
+            <Select
+              value={pdfPeriod}
+              onChange={(e) => setPdfPeriod(e.target.value)}
+            >
+              {availablePeriods.map((label) => (
+                <option key={label} value={label}>
+                  {getPeriodDisplayLabel(label)}
+                  {label === getCurrentPeriodLabel() ? "（今期間）" : ""}
+                </option>
+              ))}
+            </Select>
+            <PdfExportControls
+              periodLabel={pdfPeriod}
+              disabled={!pdfLogCount}
+              buttonLabel="PDFを書き出す"
+              buttonVariant="primary"
+            />
+          </div>
+          {pdfLogCount === 0 && (
+            <p className="mt-2 text-sm text-slate-400">この期間の日報はありません。</p>
+          )}
         </Card>
 
         <Card>

@@ -64,7 +64,7 @@ export interface PeriodAdjustment {
 
 export type PeriodAdjustmentInput = Pick<PeriodAdjustment, "name" | "amount">;
 
-/** PDF出力の税区分。exclusive：外税（日報の金額は税抜）、inclusive：内税（日報の金額は税込） */
+/** PDF出力の税区分。exclusive：外税（日報の金額は税抜で、消費税・税込合計を記載）、inclusive：内税（税額計算をせず金額をそのまま合計） */
 export type PdfTaxMode = "exclusive" | "inclusive";
 
 export const PDF_TAX_MODE_LABEL: Record<PdfTaxMode, string> = {

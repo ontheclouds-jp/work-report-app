@@ -109,7 +109,7 @@ export default function PdfSettingsPage() {
               取引先名などを入力します。入力した文字はそのままPDFに記載されます。複数登録すると、PDF出力時にどの宛先を使うか選べます。
             </p>
             <p className="mt-1 text-sm text-slate-400">
-              税区分は宛先ごとに選べます。「外税」は日報の金額を税抜として消費税・税込合計を記載し、「内税」は日報の金額を税込として税抜き金額を記載します。
+              税区分は宛先ごとに選べます。「外税」は日報の金額を税抜として消費税・税込合計を記載し、「内税」は消費税の計算をせず、入力した金額をそのまま合計して記載します。
             </p>
             <div className="mt-4 flex flex-col gap-3">
               {recipients.map((recipient, index) => (

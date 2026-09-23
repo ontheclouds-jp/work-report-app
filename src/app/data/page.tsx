@@ -27,6 +27,7 @@ import { getLastAutoBackupAt } from "@/lib/autoBackup";
 import {
   getCurrentPeriodLabel,
   getPeriodDisplayLabel,
+  getPeriodRangeDisplayLabel,
   listRecentPeriodLabels,
   todayISODate,
 } from "@/lib/period";
@@ -64,6 +65,12 @@ export default function DataManagementPage() {
 
   const [csvPeriod, setCsvPeriod] = useState<string>(PERIOD_ALL);
   const [csvBusy, setCsvBusy] = useState(false);
+  // PDFは日報がある月度だけを選べるようにする（現在の月度は日報がなくても初期選択として含める）
+  const pdfPeriodOptions = useMemo(() => {
+    const set = new Set<string>([getCurrentPeriodLabel()]);
+    for (const label of existingPeriodLabels ?? []) set.add(label);
+    return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
+  }, [existingPeriodLabels]);
   const [pdfPeriod, setPdfPeriod] = useState<string>(() => getCurrentPeriodLabel());
   const pdfLogCount = useLiveQuery(
     () => db.workLogs.where("periodLabel").equals(pdfPeriod).count(),
@@ -208,7 +215,7 @@ export default function DataManagementPage() {
         <Card>
           <h2 className="text-lg font-semibold text-slate-50">PDF書き出し</h2>
           <p className="mt-1 text-sm text-slate-400">
-            締め期間の日報一覧を、提出用の業務日報（A4）としてPDFで書き出します。ヘッダーの宛先・会社名・氏名は
+            月度（締め日の20日が属する月）を選んで、その期間の日報一覧を提出用の業務日報（A4）としてPDFで書き出します。日報がある月度は、過去にさかのぼって選べます。ヘッダーの宛先・会社名・氏名は
             <Link href="/pdf-settings" className="text-blue-400 underline">
               PDF出力設定
             </Link>
@@ -219,10 +226,10 @@ export default function DataManagementPage() {
               value={pdfPeriod}
               onChange={(e) => setPdfPeriod(e.target.value)}
             >
-              {availablePeriods.map((label) => (
+              {pdfPeriodOptions.map((label) => (
                 <option key={label} value={label}>
-                  {getPeriodDisplayLabel(label)}
-                  {label === getCurrentPeriodLabel() ? "（今期間）" : ""}
+                  {getPeriodDisplayLabel(label)}（{getPeriodRangeDisplayLabel(label)}）
+                  {label === getCurrentPeriodLabel() ? "・今期間" : ""}
                 </option>
               ))}
             </Select>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { db } from "@/lib/db/db";
 import { triggerFileDownload } from "@/lib/download";
-import { getPeriodDisplayLabel, todayISODate } from "@/lib/period";
+import { getPeriodDisplayLabel } from "@/lib/period";
 import { getAppSettings } from "@/lib/repositories/settingsRepository";
 
 interface PdfExportControlsProps {
@@ -64,7 +64,7 @@ export function PdfExportControls({
       });
       triggerFileDownload(
         bytes as Uint8Array<ArrayBuffer>,
-        `業務日報_${getPeriodDisplayLabel(periodLabel)}_${todayISODate()}.pdf`,
+        `${getPeriodDisplayLabel(periodLabel)}_作業日報.pdf`,
         "application/pdf"
       );
     } catch (err) {

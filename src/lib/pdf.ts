@@ -1,8 +1,9 @@
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { calcPeriodAmounts, summarizeByWorkType } from "@/lib/aggregation";
+import { calcAmountExcludingTax } from "@/lib/calculations";
 import { getPeriodRange } from "@/lib/period";
-import type { PeriodAdjustment, WorkLog, WorkType } from "@/types";
+import type { PdfTaxMode, PeriodAdjustment, WorkLog, WorkType } from "@/types";
 
 // 日本語を正しく表示するため、BIZ UDゴシック（SIL Open Font License）を埋め込む。
 // subset: true で実際に使った文字だけを埋め込むので、PDF自体は小さく保たれる。
@@ -62,6 +63,7 @@ export interface WorkReportPdfInput {
   recipient?: string;
   companyName?: string;
   personName?: string;
+  taxMode: PdfTaxMode; // 外税：消費税・税込合計を記載／内税：税抜き金額を記載
   createdDate: Date;
 }
 
@@ -389,20 +391,30 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     );
   }
 
-  // ---- 消費税・税込合計（2行を同じページにまとめる） ----
-  ensureSpace(MIN_ROW_HEIGHT * 2);
-  drawRow(
-    [{ text: "消費税（10%）", span: 6 }, { text: formatYen(amounts.tax) }],
-    font,
-    undefined,
-    "right"
-  );
-  drawRow(
-    [{ text: "税込合計", span: 6 }, { text: formatYen(amounts.totalWithTax) }],
-    bold,
-    COLOR_TOTAL_BG,
-    "right"
-  );
+  if (input.taxMode === "inclusive") {
+    // ---- 内税：金額は税込として扱い、消費税の行は出さずに税抜き金額だけを記載する ----
+    drawRowWithBreak(
+      [{ text: "税抜き金額", span: 6 }, { text: formatYen(calcAmountExcludingTax(amounts.subtotal)) }],
+      bold,
+      COLOR_TOTAL_BG,
+      "right"
+    );
+  } else {
+    // ---- 外税：消費税・税込合計（2行を同じページにまとめる） ----
+    ensureSpace(MIN_ROW_HEIGHT * 2);
+    drawRow(
+      [{ text: "消費税（10%）", span: 6 }, { text: formatYen(amounts.tax) }],
+      font,
+      undefined,
+      "right"
+    );
+    drawRow(
+      [{ text: "税込合計", span: 6 }, { text: formatYen(amounts.totalWithTax) }],
+      bold,
+      COLOR_TOTAL_BG,
+      "right"
+    );
+  }
 
   // ---- ページ番号 ----
   pages.forEach((p, i) => {

@@ -63,6 +63,9 @@ export function PdfExportControls({
         recipient,
         companyName: latestSettings?.pdfCompanyName,
         personName: latestSettings?.pdfPersonName,
+        // 宛先ごとに設定した税区分を適用する（未設定・宛先なしは外税）
+        taxMode:
+          (recipient && latestSettings?.pdfRecipientTaxModes?.[recipient]) || "exclusive",
         createdDate: new Date(),
       });
       triggerFileDownload(

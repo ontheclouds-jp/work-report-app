@@ -64,11 +64,20 @@ export interface PeriodAdjustment {
 
 export type PeriodAdjustmentInput = Pick<PeriodAdjustment, "name" | "amount">;
 
+/** PDF出力の税区分。exclusive：外税（日報の金額は税抜）、inclusive：内税（日報の金額は税込） */
+export type PdfTaxMode = "exclusive" | "inclusive";
+
+export const PDF_TAX_MODE_LABEL: Record<PdfTaxMode, string> = {
+  exclusive: "外税",
+  inclusive: "内税",
+};
+
 export interface AppSettings {
   id: string; // fixed singleton id "default"
   defaultStartTime?: string; // HH:mm, initial value proposal for 日報入力画面
   defaultEndTime?: string; // HH:mm, initial value proposal for 日報入力画面 (falls back to DEFAULT_END_TIME)
   pdfRecipients?: string[]; // PDF出力の宛先（複数登録可）
+  pdfRecipientTaxModes?: Record<string, PdfTaxMode>; // 宛先ごとのPDF税区分（未設定の宛先は外税）
   pdfCompanyName?: string; // PDF出力の会社名
   pdfPersonName?: string; // PDF出力の氏名
   updatedAt: string;

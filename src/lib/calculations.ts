@@ -119,6 +119,13 @@ export function calcConsumptionTax(amountExcludingTax: number): number {
   return Math.floor((Math.round(amountExcludingTax) * CONSUMPTION_TAX_RATE_PERCENT) / 100);
 }
 
+/** 税込金額から消費税10%相当を差し引いた税抜金額（税込 ÷ 1.1、円未満切り捨て）を計算する。整数演算で行う。 */
+export function calcAmountExcludingTax(amountIncludingTax: number): number {
+  return Math.floor(
+    (Math.round(amountIncludingTax) * 100) / (100 + CONSUMPTION_TAX_RATE_PERCENT)
+  );
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("ja-JP").format(amount) + "円";
 }

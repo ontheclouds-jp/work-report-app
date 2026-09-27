@@ -1,4 +1,4 @@
-import { calcConsumptionTax } from "@/lib/calculations";
+import { calcConsumptionTax, getSuddenAllowance } from "@/lib/calculations";
 import type { PeriodAdjustment, WorkLog, WorkType } from "@/types";
 
 export interface PeriodTotals {
@@ -24,7 +24,9 @@ export function summarizeLogs(logs: WorkLog[]): PeriodTotals {
 }
 
 export interface PeriodAmountBreakdown {
-  workAmount: number; // 日報の合計
+  workAmount: number; // 日報の合計（突発手当を含む）
+  suddenAllowanceAmount: number; // うち突発手当の合計
+  suddenCount: number; // 突発業務の日報の件数
   otherAmount: number; // 「その他」項目の合計（マイナス含む）
   subtotal: number; // 税抜合計 = workAmount + otherAmount
   tax: number; // 消費税（10%、円未満切り捨て）
@@ -37,10 +39,22 @@ export function calcPeriodAmounts(
   adjustments: PeriodAdjustment[]
 ): PeriodAmountBreakdown {
   const workAmount = logs.reduce((sum, log) => sum + log.amount, 0);
+  const suddenLogs = logs.filter((log) => log.isSudden);
+  const suddenAllowanceAmount = suddenLogs.reduce(
+    (sum, log) => sum + getSuddenAllowance(log),
+    0
+  );
   const otherAmount = adjustments.reduce((sum, a) => sum + a.amount, 0);
   const subtotal = workAmount + otherAmount;
   const tax = calcConsumptionTax(subtotal);
-  return { workAmount, otherAmount, subtotal, tax, totalWithTax: subtotal + tax };
+  return {
+    workAmount,
+    suddenAllowanceAmount,
+    suddenCount: suddenLogs.length,
+    otherAmount,     subtotal,
+    tax,
+    totalWithTax: subtotal + tax,
+  };
 }
 
 export interface WorkTypeSummary extends PeriodTotals {

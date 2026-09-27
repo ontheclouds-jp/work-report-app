@@ -8,9 +8,15 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { SuddenBadge } from "@/components/logs/SuddenBadge";
 import { db } from "@/lib/db/db";
 import { deleteWorkLog } from "@/lib/repositories/workLogRepository";
-import { DAY_TYPE_LABEL, formatCurrency, formatHours } from "@/lib/calculations";
+import {
+  DAY_TYPE_LABEL,
+  formatCurrency,
+  formatHours,
+  getSuddenAllowance,
+} from "@/lib/calculations";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -56,11 +62,17 @@ export default function WorkLogDetailPage() {
         }
       />
 
-      <Card className="mb-4 text-center">
+      <Card className={`mb-4 text-center ${workLog.isSudden ? "border-orange-500/70!" : ""}`}>
         <p className="text-sm text-slate-400">金額</p>
         <p className="text-3xl font-bold text-amber-400">
           {formatCurrency(workLog.amount)}
         </p>
+        {workLog.isSudden && (
+          <p className="mt-1 flex items-center justify-center gap-2 text-sm text-orange-300">
+            <SuddenBadge />
+            うち突発手当 {formatCurrency(getSuddenAllowance(workLog))}
+          </p>
+        )}
       </Card>
 
       <Card>
@@ -85,6 +97,12 @@ export default function WorkLogDetailPage() {
           label="時間単価"
           value={`${formatCurrency(workLog.hourlyRate)}/時間`}
         />
+        {workLog.isSudden && (
+          <DetailRow
+            label="突発手当"
+            value={formatCurrency(getSuddenAllowance(workLog))}
+          />
+        )}
       </Card>
 
       <Card className="mt-4">

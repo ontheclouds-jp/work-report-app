@@ -28,7 +28,9 @@ export interface WorkLog {
   regularHours: number; // portion of workHours up to 8 hours
   overtimeHours: number; // portion of workHours beyond 8 hours
   hourlyRate: number;
-  amount: number; // (regularHours * hourlyRate * dayMultiplier) + (overtimeHours * hourlyRate * dayMultiplier * 1.25)
+  amount: number; // (regularHours * hourlyRate * dayMultiplier) + (overtimeHours * hourlyRate * dayMultiplier * 1.25) + suddenAllowance
+  isSudden?: boolean; // 突発業務の日報かどうか（v1.0.12より前のデータは未設定＝OFF）
+  suddenAllowance?: number; // この日報に加算した突発手当（保存時点の設定額。突発業務でなければ0、未設定は0扱い）
   content: string;
   memo?: string;
   periodLabel: string; // YYYY-MM, closing period this log belongs to
@@ -47,6 +49,7 @@ export type WorkLogInput = Omit<
   | "regularHours"
   | "overtimeHours"
   | "amount"
+  | "suddenAllowance"
   | "periodLabel"
   | "createdAt"
   | "updatedAt"
@@ -76,6 +79,7 @@ export interface AppSettings {
   id: string; // fixed singleton id "default"
   defaultStartTime?: string; // HH:mm, initial value proposal for 日報入力画面
   defaultEndTime?: string; // HH:mm, initial value proposal for 日報入力画面 (falls back to DEFAULT_END_TIME)
+  suddenAllowanceAmount?: number; // 突発手当（円、0以上の整数）。突発業務の日報の金額に加算する固定額（未設定は0円）
   pdfRecipients?: string[]; // PDF出力の宛先（複数登録可）
   pdfRecipientTaxModes?: Record<string, PdfTaxMode>; // 宛先ごとのPDF税区分（未設定の宛先は外税）
   pdfCompanyName?: string; // PDF出力の会社名

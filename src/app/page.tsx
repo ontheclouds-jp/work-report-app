@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { SuddenBadge } from "@/components/logs/SuddenBadge";
 import { db } from "@/lib/db/db";
 import { getLastAutoBackupAt, triggerAutoBackup } from "@/lib/autoBackup";
 import { formatCurrency, formatHours } from "@/lib/calculations";
@@ -118,10 +119,15 @@ export default function HomePage() {
           </p>
           {todaysLogs!.map((log) => (
             <Link key={log.id} href={`/logs/${log.id}`}>
-              <Card className="flex items-center justify-between gap-3">
+              <Card
+                className={`flex items-center justify-between gap-3 ${
+                  log.isSudden ? "border-orange-500/70!" : ""
+                }`}
+              >
                 <div>
-                  <p className="text-base font-semibold text-slate-50">
+                  <p className="flex items-center gap-2 text-base font-semibold text-slate-50">
                     {workTypeNameById.get(log.workTypeId) ?? "（不明な作業名）"}
+                    {log.isSudden && <SuddenBadge />}
                   </p>
                   <p className="mt-1 text-sm text-slate-400">
                     {log.startTime}〜{log.endTime}（{formatHours(log.workHours)}）
@@ -176,6 +182,14 @@ export default function HomePage() {
                 </span>
               </li>
             ))}
+            {periodAmounts.suddenCount > 0 && (
+              <li className="flex items-center justify-between text-sm text-orange-300">
+                <span>⚡うち突発手当（{periodAmounts.suddenCount}件）</span>
+                <span className="font-medium">
+                  {formatCurrency(periodAmounts.suddenAllowanceAmount)}
+                </span>
+              </li>
+            )}
             {(periodAdjustments ?? []).length > 0 && (
               <li className="flex items-center justify-between text-sm">
                 <span className="text-slate-300">

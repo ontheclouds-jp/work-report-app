@@ -13,11 +13,18 @@ import {
   getAppSettings,
   updateAppSettings,
 } from "@/lib/repositories/settingsRepository";
+import { parseAmountText, suddenAllowanceAmountSchema } from "@/lib/validations";
+
+function parseSuddenAllowanceText(text: string): number {
+  return text.trim() === "" ? 0 : parseAmountText(text);
+}
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [defaultStartTime, setDefaultStartTime] = useState("");
   const [defaultEndTime, setDefaultEndTime] = useState(DEFAULT_END_TIME);
+  const [suddenAllowanceText, setSuddenAllowanceText] = useState("");
+  const [suddenAllowanceError, setSuddenAllowanceError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
 
@@ -30,6 +37,7 @@ export default function SettingsPage() {
       const settings = await getAppSettings();
       setDefaultStartTime(settings?.defaultStartTime ?? "");
       setDefaultEndTime(settings?.defaultEndTime ?? DEFAULT_END_TIME);
+      setSuddenAllowanceText(String(settings?.suddenAllowanceAmount ?? 0));
       setLoading(false);
     })();
     // localStorage is unavailable during SSR, so the real value is read
@@ -47,12 +55,26 @@ export default function SettingsPage() {
   }
 
   async function handleSave() {
+    // 未入力は0円として扱う
+    const parsedAllowance = parseSuddenAllowanceText(suddenAllowanceText);
+    const allowanceResult = suddenAllowanceAmountSchema.safeParse(parsedAllowance);
+    if (!allowanceResult.success) {
+      setSuddenAllowanceError(
+        Number.isNaN(parsedAllowance)
+          ? "突発手当は0以上の整数（円）で入力してください"
+          : allowanceResult.error.issues[0].message
+      );
+      return;
+    }
+    setSuddenAllowanceError(null);
     setSaving(true);
     try {
       await updateAppSettings({
         defaultStartTime: defaultStartTime === "" ? undefined : defaultStartTime,
         defaultEndTime: defaultEndTime === "" ? undefined : defaultEndTime,
+        suddenAllowanceAmount: allowanceResult.data,
       });
+      setSuddenAllowanceText(String(allowanceResult.data));
       setSavedMessage(true);
     } finally {
       setSaving(false);
@@ -141,6 +163,33 @@ export default function SettingsPage() {
                     setDefaultEndTime(e.target.value);
                     setSavedMessage(false);
                   }}
+                />
+              </Field>
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold text-slate-50">⚡ 突発手当</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            日報で「突発業務」をONにした日の金額に加算する固定額です（初期値：0円）。金額を変更すると、変更後に保存した日報から新しい金額が適用されます（保存済みの日報の金額は変わりません）。
+          </p>
+          {!loading && (
+            <div className="mt-4">
+              <Field
+                label="突発手当（円）"
+                htmlFor="suddenAllowanceAmount"
+                error={suddenAllowanceError ?? undefined}
+              >
+                <Input
+                  id="suddenAllowanceAmount"
+                  inputMode="numeric"
+                  value={suddenAllowanceText}
+                  onChange={(e) => {
+                    setSuddenAllowanceText(e.target.value);
+                    setSavedMessage(false);
+                  }}
+                  placeholder="例：5000"
                 />
               </Field>
             </div>

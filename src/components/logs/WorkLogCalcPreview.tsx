@@ -9,6 +9,7 @@ interface WorkLogCalcPreviewProps {
   dayType: DayType;
   dayMultiplier: number;
   amount: number | null;
+  suddenAllowance: number;
   error: string | null;
 }
 
@@ -21,6 +22,7 @@ export function WorkLogCalcPreview({
   dayType,
   dayMultiplier,
   amount,
+  suddenAllowance,
   error,
 }: WorkLogCalcPreviewProps) {
   return (
@@ -64,6 +66,11 @@ export function WorkLogCalcPreview({
           <dd className="text-2xl font-bold text-amber-400">
             {amount !== null ? formatCurrency(amount) : "―"}
           </dd>
+          {suddenAllowance > 0 && (
+            <dd className="mt-1 text-sm text-orange-400">
+              ⚡ うち突発手当 {formatCurrency(suddenAllowance)}
+            </dd>
+          )}
         </div>
       </dl>
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}

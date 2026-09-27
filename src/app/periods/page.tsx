@@ -122,6 +122,12 @@ export default function PeriodsPage() {
             <dt className="text-slate-400">作業分</dt>
             <dd className="text-slate-200">{formatCurrency(amounts.workAmount)}</dd>
           </div>
+          {amounts.suddenCount > 0 && (
+            <div className="flex justify-between pl-3 text-orange-300">
+              <dt>⚡うち突発手当（{amounts.suddenCount}件）</dt>
+              <dd>{formatCurrency(amounts.suddenAllowanceAmount)}</dd>
+            </div>
+          )}
           <div className="flex justify-between">
             <dt className="text-slate-400">その他</dt>
             <dd className={amounts.otherAmount < 0 ? "text-rose-400" : "text-slate-200"}>

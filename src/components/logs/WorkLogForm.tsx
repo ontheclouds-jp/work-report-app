@@ -1,6 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -15,6 +16,7 @@ import {
   calcOvertimeSplit,
   calcRawDuration,
   calcWorkHours,
+  formatCurrency,
   getDayType,
 } from "@/lib/calculations";
 import { workLogFormSchema } from "@/lib/validations";
@@ -54,7 +56,13 @@ export function WorkLogForm({
   const [hourlyRate, setHourlyRate] = useState(
     initialValue?.hourlyRate !== undefined ? String(initialValue.hourlyRate) : ""
   );
+  const [isSudden, setIsSudden] = useState(initialValue?.isSudden ?? false);
   const [memo, setMemo] = useState(initialValue?.memo ?? "");
+  // 設定が未保存の場合は null（読み込み中の undefined と区別する）
+  const appSettings = useLiveQuery(async () => (await getAppSettings()) ?? null, []);
+  const configuredSuddenAllowance = appSettings?.suddenAllowanceAmount ?? 0;
+  // 保存時に現在の設定額で再計算されるため、プレビューも現在の設定額で表示する
+  const suddenAllowance = isSudden ? configuredSuddenAllowance : 0;
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -134,6 +142,7 @@ export function WorkLogForm({
       regularHours: null,
       overtimeHours: null,
       amount: null,
+      suddenAllowance,
       dayType,
       dayMultiplier,
       error: null,
@@ -162,7 +171,7 @@ export function WorkLogForm({
     const rate = Number(hourlyRate);
     const amount =
       hourlyRate !== "" && !Number.isNaN(rate)
-        ? calcAmount(regularHours, overtimeHours, rate, dayMultiplier)
+        ? calcAmount(regularHours, overtimeHours, rate, dayMultiplier) + suddenAllowance
         : null;
     return {
       rawDuration,
@@ -171,11 +180,12 @@ export function WorkLogForm({
       regularHours,
       overtimeHours,
       amount,
+      suddenAllowance,
       dayType,
       dayMultiplier,
       error: null,
     };
-  }, [workDate, startTime, endTime, hourlyRate]);
+  }, [workDate, startTime, endTime, hourlyRate, suddenAllowance]);
 
   async function proceedSave(input: WorkLogInput, overwriteId?: string) {
     setSubmitting(true);
@@ -199,6 +209,7 @@ export function WorkLogForm({
       endTime,
       content,
       hourlyRate: hourlyRate === "" ? undefined : Number(hourlyRate),
+      isSudden,
       memo: memo === "" ? undefined : memo,
     });
 
@@ -314,6 +325,7 @@ export function WorkLogForm({
           dayType={preview.dayType}
           dayMultiplier={preview.dayMultiplier}
           amount={preview.amount}
+          suddenAllowance={preview.suddenAllowance}
           error={preview.error}
         />
 
@@ -336,6 +348,42 @@ export function WorkLogForm({
             <p className="mt-1 text-sm text-slate-400">{rateSuggestionNote}</p>
           )}
         </Field>
+
+        <div
+          className={`rounded-xl border p-4 ${
+            isSudden ? "border-orange-500/70 bg-orange-950/30" : "border-slate-700"
+          }`}
+        >
+          <label htmlFor="isSudden" className="flex cursor-pointer items-center justify-between gap-3">
+            <span>
+              <span className="block text-base font-medium text-slate-100">⚡ 突発業務</span>
+              <span className="block text-sm text-slate-400">
+                ONにすると突発手当 {formatCurrency(configuredSuddenAllowance)} を加算します
+              </span>
+            </span>
+            <span className="relative inline-flex shrink-0 items-center">
+              <input
+                id="isSudden"
+                type="checkbox"
+                role="switch"
+                className="peer sr-only"
+                checked={isSudden}
+                onChange={(e) => setIsSudden(e.target.checked)}
+              />
+              <span className="h-7 w-12 rounded-full bg-slate-600 transition-colors peer-checked:bg-orange-500 peer-focus-visible:ring-2 peer-focus-visible:ring-orange-300" />
+              <span className="absolute left-1 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+            </span>
+          </label>
+          {isSudden && appSettings !== undefined && configuredSuddenAllowance === 0 && (
+            <p className="mt-2 text-sm text-amber-400">
+              突発手当の金額が未設定（0円）です。
+              <Link href="/settings" className="underline">
+                設定画面
+              </Link>
+              で金額を登録してください。
+            </p>
+          )}
+        </div>
 
         <Field label="作業内容" required error={errors.content} htmlFor="content">
           <Textarea

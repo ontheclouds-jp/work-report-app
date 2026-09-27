@@ -9,9 +9,10 @@ import {
   getDayType,
 } from "@/lib/calculations";
 import { calcPeriodLabel } from "@/lib/period";
+import { getAppSettings } from "@/lib/repositories/settingsRepository";
 import type { WorkLog, WorkLogInput } from "@/types";
 
-function buildComputedFields(input: WorkLogInput) {
+async function buildComputedFields(input: WorkLogInput) {
   const rawDuration = calcRawDuration(input.startTime, input.endTime);
   if (rawDuration === null) {
     throw new Error(
@@ -27,7 +28,12 @@ function buildComputedFields(input: WorkLogInput) {
   const dayType = getDayType(input.workDate);
   const dayMultiplier = DAY_MULTIPLIERS[dayType];
   const { regularHours, overtimeHours } = calcOvertimeSplit(workHoursResult.workHours);
-  const amount = calcAmount(regularHours, overtimeHours, input.hourlyRate, dayMultiplier);
+  // 突発手当は保存時点の設定額を日報に記録する（あとで設定を変えても保存済みの金額は変わらない）
+  const suddenAllowance = input.isSudden
+    ? ((await getAppSettings())?.suddenAllowanceAmount ?? 0)
+    : 0;
+  const amount =
+    calcAmount(regularHours, overtimeHours, input.hourlyRate, dayMultiplier) + suddenAllowance;
   const periodLabel = calcPeriodLabel(input.workDate);
   return {
     ...workHoursResult,
@@ -35,6 +41,7 @@ function buildComputedFields(input: WorkLogInput) {
     dayMultiplier,
     regularHours,
     overtimeHours,
+    suddenAllowance,
     amount,
     periodLabel,
   };
@@ -90,7 +97,7 @@ export async function findWorkLogByWorkTypeAndDate(
 }
 
 export async function createWorkLog(input: WorkLogInput): Promise<WorkLog> {
-  const computed = buildComputedFields(input);
+  const computed = await buildComputedFields(input);
   const now = new Date().toISOString();
   const workLog: WorkLog = {
     id: crypto.randomUUID(),
@@ -110,7 +117,7 @@ export async function updateWorkLog(
 ): Promise<WorkLog> {
   const existing = await db.workLogs.get(id);
   if (!existing) throw new Error("日報が見つかりません");
-  const computed = buildComputedFields(input);
+  const computed = await buildComputedFields(input);
   const updated: WorkLog = {
     ...existing,
     ...input,

@@ -76,6 +76,9 @@ const workLogBackupSchema = z.object({
   overtimeHours: z.number(),
   hourlyRate: z.number(),
   amount: z.number(),
+  // v1.0.12より前のバックアップには含まれないため任意
+  isSudden: z.boolean().optional(),
+  suddenAllowance: z.number().optional(),
   content: z.string(),
   memo: z.string().optional(),
   periodLabel: z.string(),
@@ -87,6 +90,7 @@ const appSettingsBackupSchema = z.object({
   id: z.string(),
   defaultStartTime: z.string().optional(),
   defaultEndTime: z.string().optional(),
+  suddenAllowanceAmount: z.number().optional(),
   pdfRecipients: z.array(z.string()).optional(),
   pdfRecipientTaxModes: z.record(z.string(), z.enum(["exclusive", "inclusive"])).optional(),
   pdfCompanyName: z.string().optional(),

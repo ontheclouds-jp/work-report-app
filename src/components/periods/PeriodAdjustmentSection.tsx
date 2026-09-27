@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { formatCurrency } from "@/lib/calculations";
-import { periodAdjustmentFormSchema } from "@/lib/validations";
+import { parseAmountText, periodAdjustmentFormSchema } from "@/lib/validations";
 import {
   createPeriodAdjustment,
   deletePeriodAdjustment,
@@ -27,15 +27,6 @@ interface FormState {
 interface PeriodAdjustmentSectionProps {
   periodLabel: string;
   adjustments: PeriodAdjustment[];
-}
-
-/** 全角数字・カンマ・「円」を許容して金額の絶対値を数値に変換する。変換できない場合はNaN。 */
-function parseAmountText(text: string): number {
-  const normalized = text
-    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
-    .replace(/[,，円\s]/g, "");
-  if (!/^\d+$/.test(normalized)) return NaN;
-  return Number(normalized);
 }
 
 /** 締め期間（月度）ごとの「その他」項目（外注費・値引きなど）の一覧と追加・編集・削除。 */

@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { SuddenBadge } from "@/components/logs/SuddenBadge";
 import { db } from "@/lib/db/db";
 import { formatCurrency, formatHours } from "@/lib/calculations";
 import {
@@ -208,10 +209,13 @@ export default function WorkLogsPage() {
         {filteredLogs.map((log: WorkLog) => (
           <li key={log.id}>
             <Link href={`/logs/${log.id}`}>
-              <Card>
+              <Card className={log.isSudden ? "border-orange-500/70!" : ""}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm text-slate-400">{log.workDate}</p>
+                    <p className="flex items-center gap-2 text-sm text-slate-400">
+                      {log.workDate}
+                      {log.isSudden && <SuddenBadge />}
+                    </p>
                     <p className="text-base font-semibold text-slate-50">
                       {workTypeNameById.get(log.workTypeId) ?? "（不明な作業名）"}
                     </p>

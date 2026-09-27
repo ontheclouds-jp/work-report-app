@@ -1,6 +1,7 @@
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { calcPeriodAmounts, summarizeByWorkType } from "@/lib/aggregation";
+import { getBaseAmount } from "@/lib/calculations";
 import { getPeriodRange } from "@/lib/period";
 import { formatRecipientForPdf } from "@/lib/pdfRecipient";
 import type { PdfTaxMode, PeriodAdjustment, WorkLog, WorkType } from "@/types";
@@ -326,6 +327,7 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
       `${formatTimeShort(log.startTime)}～${formatTimeShort(log.endTime)}`,
       content,
       formatHoursShort(log.workHours),
+      log.isSudden ? "【突発業務】" : "",
     ]
       .filter((part) => part !== "")
       .join(" ");
@@ -361,8 +363,10 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     COLOR_TOTAL_BG
   );
 
-  // ---- 業務内容（作業名）別小計：ホーム画面・締め期間集計画面と同じく金額の大きい順 ----
-  for (const item of summarizeByWorkType(input.logs, input.workTypes)) {
+  // ---- 業務内容（作業名）別小計：金額の大きい順 ----
+  // 突発手当は下の「突発手当合計」行に分けて記載するため、小計には含めない
+  const logsWithoutAllowance = input.logs.map((log) => ({ ...log, amount: getBaseAmount(log) }));
+  for (const item of summarizeByWorkType(logsWithoutAllowance, input.workTypes)) {
     drawRowWithBreak(
       [
         { text: "小計", span: 3 },
@@ -375,7 +379,20 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     );
   }
 
-  // ---- その他項目（外注費・値引きなど）：業務内容別小計の下 ----
+  // ---- 突発手当合計：業務内容別小計の下（突発業務の日報がある場合のみ） ----
+  if (amounts.suddenCount > 0) {
+    drawRowWithBreak(
+      [
+        { text: "突発手当", span: 3 },
+        { text: `突発手当合計（${amounts.suddenCount}件）`, span: 2, align: "left" },
+        { text: "" },
+        { text: formatYen(amounts.suddenAllowanceAmount) },
+      ],
+      font
+    );
+  }
+
+  // ---- その他項目（外注費・値引きなど）：突発手当合計の下 ----
   for (const adjustment of input.adjustments) {
     drawRowWithBreak(
       [

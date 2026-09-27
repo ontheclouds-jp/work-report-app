@@ -112,6 +112,16 @@ export function calcAmount(
   return Math.round(regularAmount + overtimeAmount);
 }
 
+/** 日報に加算された突発手当（旧データなど未設定の場合は0）。 */
+export function getSuddenAllowance(log: { suddenAllowance?: number }): number {
+  return log.suddenAllowance ?? 0;
+}
+
+/** 突発手当を除いた日報の金額（単価×時間に割増を掛けた分のみ）。 */
+export function getBaseAmount(log: { amount: number; suddenAllowance?: number }): number {
+  return log.amount - getSuddenAllowance(log);
+}
+
 export const CONSUMPTION_TAX_RATE_PERCENT = 10;
 
 /** 税抜金額から消費税（10%、円未満切り捨て）を計算する。浮動小数の誤差を避けるため整数演算で行う。 */

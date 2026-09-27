@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { calcRawDuration, calcWorkHours } from "./calculations";
 
+/** 全角数字・カンマ・「円」を許容して金額の絶対値を数値に変換する。変換できない場合はNaN。 */
+export function parseAmountText(text: string): number {
+  const normalized = text
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[,，円\s]/g, "");
+  if (!/^\d+$/.test(normalized)) return NaN;
+  return Number(normalized);
+}
+
 export const periodAdjustmentFormSchema = z.object({
   name: z
     .string()
@@ -53,6 +62,7 @@ export const workLogFormSchema = z
     hourlyRate: z
       .number({ error: "時間単価を入力してください" })
       .gt(0, "時間単価は0より大きい数値で入力してください"),
+    isSudden: z.boolean(),
     memo: z.string().max(2000, "メモは2000文字以内で入力してください").optional(),
   })
   .superRefine((data, ctx) => {
@@ -75,5 +85,10 @@ export const workLogFormSchema = z
       });
     }
   });
+
+export const suddenAllowanceAmountSchema = z
+  .number({ error: "金額を入力してください" })
+  .int("突発手当は円単位の整数で入力してください")
+  .min(0, "突発手当は0以上で入力してください");
 
 export type WorkLogFormValues = z.infer<typeof workLogFormSchema>;

@@ -1,4 +1,4 @@
-import { DAY_TYPE_LABEL } from "@/lib/calculations";
+import { DAY_TYPE_LABEL, getSuddenAllowance } from "@/lib/calculations";
 import { getPeriodDisplayLabel } from "@/lib/period";
 import type { WorkLog, WorkType } from "@/types";
 
@@ -15,6 +15,8 @@ const CSV_HEADERS = [
   "通常時間",
   "残業時間",
   "時間単価",
+  "突発業務",
+  "突発手当",
   "金額",
   "作業内容",
   "メモ",
@@ -49,6 +51,8 @@ export function workLogsToCsv(logs: WorkLog[], workTypes: WorkType[]): string {
       log.regularHours,
       log.overtimeHours,
       log.hourlyRate,
+      log.isSudden ? "○" : "",
+      getSuddenAllowance(log),
       log.amount,
       log.content,
       log.memo ?? "",

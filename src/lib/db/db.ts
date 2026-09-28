@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { AppSettings, PeriodAdjustment, WorkType, WorkLog } from "@/types";
+import type { AppSettings, PeriodAdjustment, WorkPlace, WorkType, WorkLog } from "@/types";
 import {
   calcAmount,
   calcOvertimeSplit,
@@ -12,6 +12,7 @@ import { normalizeRecipientSettings } from "@/lib/pdfRecipient";
 class WorkReportDatabase extends Dexie {
   workTypes!: EntityTable<WorkType, "id">;
   workLogs!: EntityTable<WorkLog, "id">;
+  workPlaces!: EntityTable<WorkPlace, "id">;
   appSettings!: EntityTable<AppSettings, "id">;
   periodAdjustments!: EntityTable<PeriodAdjustment, "id">;
 
@@ -104,6 +105,12 @@ class WorkReportDatabase extends Dexie {
         .modify((settings: AppSettings) => {
           Object.assign(settings, normalizeRecipientSettings(settings));
         });
+    });
+    // 作業場所を新設。既存の日報は作業場所を持たないまま（未設定扱い）とし、データは書き換えない。
+    this.version(7).stores({
+      workPlaces: "id, name, status, createdAt",
+      workLogs:
+        "id, workTypeId, workPlaceId, workDate, periodLabel, [workTypeId+workDate], createdAt",
     });
   }
 }

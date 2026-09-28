@@ -225,6 +225,11 @@ export default function HomePage() {
             作業名一覧を見る
           </Button>
         </Link>
+        <Link href="/work-places" className="col-span-2">
+          <Button variant="secondary" fullWidth>
+            作業場所一覧を見る
+          </Button>
+        </Link>
       </div>
     </div>
   );

@@ -42,6 +42,18 @@ export const workTypeFormSchema = z.object({
 
 export type WorkTypeFormValues = z.infer<typeof workTypeFormSchema>;
 
+export const workPlaceFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "作業場所を入力してください")
+    .max(100, "作業場所は100文字以内で入力してください"),
+  status: workTypeStatusSchema,
+  memo: z.string().max(2000, "メモは2000文字以内で入力してください").optional(),
+});
+
+export type WorkPlaceFormValues = z.infer<typeof workPlaceFormSchema>;
+
 const timeSchema = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "時刻の形式が正しくありません");
@@ -49,6 +61,7 @@ const timeSchema = z
 export const workLogFormSchema = z
   .object({
     workTypeId: z.string().min(1, "作業名を選択してください"),
+    workPlaceId: z.string().min(1, "作業場所を選択してください"),
     workDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "日付を入力してください"),

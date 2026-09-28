@@ -55,6 +55,7 @@ export default function PeriodsPage() {
     [selectedPeriod]
   );
   const workTypes = useLiveQuery(() => db.workTypes.toArray(), []);
+  const workPlaces = useLiveQuery(() => db.workPlaces.toArray(), []);
   const adjustments = useLiveQuery(
     () => listPeriodAdjustments(selectedPeriod),
     [selectedPeriod]
@@ -67,7 +68,7 @@ export default function PeriodsPage() {
   const byDate = summarizeByDate(logs ?? []);
 
   function handleExportCsv() {
-    const csv = workLogsToCsv(logs ?? [], workTypes ?? []);
+    const csv = workLogsToCsv(logs ?? [], workTypes ?? [], workPlaces ?? []);
     triggerFileDownload(
       csv,
       `日報_${getPeriodDisplayLabel(selectedPeriod)}.csv`,

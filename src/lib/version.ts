@@ -1,10 +1,15 @@
 // アプリのバージョン情報。私（Claude Code）が更新作業を行うたびに、
 // このバージョン番号と最終更新日を新しい値に更新する。
-export const APP_VERSION = "v1.0.12";
-export const APP_LAST_UPDATED = "2026-09-27";
+export const APP_VERSION = "v1.0.13";
+export const APP_LAST_UPDATED = "2026-09-28";
 
 // 更新履歴（新しい順）。バージョンを上げるときは先頭に1件追加する。
 export const APP_CHANGELOG: { version: string; date: string; description: string }[] = [
+  {
+    version: "v1.0.13",
+    date: "2026-09-28",
+    description: "作業場所の入力項目を追加（作業場所一覧・PDF列表示に対応）",
+  },
   {
     version: "v1.0.12",
     date: "2026-09-27",

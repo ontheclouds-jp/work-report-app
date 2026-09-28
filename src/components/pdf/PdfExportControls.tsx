@@ -47,9 +47,10 @@ export function PdfExportControls({
     setBusy(true);
     setError(null);
     try {
-      const [logs, workTypes, adjustments, latestSettings] = await Promise.all([
+      const [logs, workTypes, workPlaces, adjustments, latestSettings] = await Promise.all([
         db.workLogs.where("periodLabel").equals(periodLabel).toArray(),
         db.workTypes.toArray(),
+        db.workPlaces.toArray(),
         listPeriodAdjustments(periodLabel),
         getAppSettings(),
       ]);
@@ -59,6 +60,7 @@ export function PdfExportControls({
         periodLabel,
         logs,
         workTypes,
+        workPlaces,
         adjustments,
         recipient,
         companyName: latestSettings?.pdfCompanyName,

@@ -4,7 +4,7 @@ import { calcPeriodAmounts, summarizeByWorkType } from "@/lib/aggregation";
 import { getBaseAmount } from "@/lib/calculations";
 import { getPeriodRange } from "@/lib/period";
 import { formatRecipientForPdf } from "@/lib/pdfRecipient";
-import type { PdfTaxMode, PeriodAdjustment, WorkLog, WorkType } from "@/types";
+import type { PdfTaxMode, PeriodAdjustment, WorkLog, WorkPlace, WorkType } from "@/types";
 
 // 日本語を正しく表示するため、BIZ UDゴシック（SIL Open Font License）を埋め込む。
 // subset: true で実際に使った文字だけを埋め込むので、PDF自体は小さく保たれる。
@@ -43,15 +43,18 @@ interface Column {
   wrap?: boolean;
 }
 
-// 合計幅は PAGE_WIDTH - MARGIN_X * 2（= 515.28）に合わせる
+// 合計幅は PAGE_WIDTH - MARGIN_X * 2（= 515.28）に合わせる。
+// 作業場所の列を設けた分、摘要の列幅を狭くしている。
 const COLUMNS: Column[] = [
-  { label: "№", width: 26, align: "center" },
-  { label: "日付", width: 38, align: "center" },
-  { label: "曜日", width: 28, align: "center" },
-  { label: "業務内容", width: 100, align: "left", wrap: true },
-  { label: "摘要", width: 191.28, align: "left", wrap: true },
-  { label: "単価", width: 60, align: "right" },
-  { label: "金額", width: 72, align: "right" },
+  { label: "№", width: 22, align: "center" },
+  { label: "日付", width: 34, align: "center" },
+  { label: "曜日", width: 26, align: "center" },
+  { label: "業務内容", width: 84, align: "left", wrap: true },
+  { label: "作業場所", width: 62, align: "left", wrap: true },
+  { label: "摘要", width: 105.28, align: "left", wrap: true },
+  { label: "時間", width: 64, align: "center", wrap: true },
+  { label: "単価", width: 54, align: "right" },
+  { label: "金額", width: 64, align: "right" },
 ];
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -60,6 +63,7 @@ export interface WorkReportPdfInput {
   periodLabel: string; // YYYY-MM
   logs: WorkLog[];
   workTypes: WorkType[];
+  workPlaces: WorkPlace[];
   adjustments: PeriodAdjustment[]; // 「その他」項目（登録順）
   recipient?: string; // 会社名のみ（「御中」はPDF上で自動で付ける）
   companyName?: string;
@@ -106,20 +110,22 @@ function getWeekday(isoDate: string): number {
   return new Date(y, m - 1, d).getDay();
 }
 
-/** 列幅に収まるよう1文字ずつ折り返す（日本語は単語区切りがないため文字単位）。 */
+/** 列幅に収まるよう1文字ずつ折り返す（日本語は単語区切りがないため文字単位）。改行文字では必ず改行する。 */
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const lines: string[] = [];
-  let current = "";
-  for (const char of Array.from(text)) {
-    const candidate = current + char;
-    if (current !== "" && font.widthOfTextAtSize(candidate, size) > maxWidth) {
-      lines.push(current);
-      current = char;
-    } else {
-      current = candidate;
+  for (const paragraph of text.split("\n")) {
+    let current = "";
+    for (const char of Array.from(paragraph)) {
+      const candidate = current + char;
+      if (current !== "" && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+        lines.push(current);
+        current = char;
+      } else {
+        current = candidate;
+      }
     }
+    lines.push(current);
   }
-  lines.push(current);
   return lines;
 }
 
@@ -168,6 +174,7 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
   pdfDoc.setCreator("作業日報帳");
 
   const workTypeNameById = new Map(input.workTypes.map((w) => [w.id, w.name]));
+  const workPlaceNameById = new Map(input.workPlaces.map((p) => [p.id, p.name]));
   const sortedLogs = [...input.logs].sort((a, b) =>
     a.workDate === b.workDate
       ? a.startTime.localeCompare(b.startTime)
@@ -323,14 +330,13 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     const weekday = getWeekday(log.workDate);
     const [, m, d] = log.workDate.split("-").map(Number);
     const content = log.content.replace(/\s+/g, " ").trim();
-    const summary = [
-      `${formatTimeShort(log.startTime)}～${formatTimeShort(log.endTime)}`,
-      content,
-      formatHoursShort(log.workHours),
-      log.isSudden ? "【突発業務】" : "",
-    ]
+    // 摘要は作業内容の説明のみ（作業場所・時間はそれぞれの列に分けて記載する）
+    const summary = [content, log.isSudden ? "【突発業務】" : ""]
       .filter((part) => part !== "")
       .join(" ");
+    // 作業場所が未設定（v1.0.13より前）の日報は空欄
+    const workPlaceName = (log.workPlaceId && workPlaceNameById.get(log.workPlaceId)) || "";
+    const timeText = `${formatTimeShort(log.startTime)}～${formatTimeShort(log.endTime)}\n${formatHoursShort(log.workHours)}`;
     const cells: Cell[] = [
       { text: String(index + 1) },
       { text: `${m}/${d}` },
@@ -339,7 +345,9 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
         color: weekday === 6 ? COLOR_SATURDAY : weekday === 0 ? COLOR_SUNDAY : undefined,
       },
       { text: workTypeNameById.get(log.workTypeId) ?? "（不明な作業名）" },
+      { text: workPlaceName },
       { text: summary },
+      { text: timeText },
       { text: formatYen(log.hourlyRate) },
       { text: formatYen(log.amount) },
     ];
@@ -354,7 +362,7 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
   // ---- 合計 ----
   drawRowWithBreak(
     [
-      { text: "合計", span: 4 },
+      { text: "合計", span: 6 },
       { text: formatHoursShort(Math.round(totalHours * 100) / 100) },
       { text: "" },
       { text: formatYen(amounts.subtotal) },
@@ -370,7 +378,7 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     drawRowWithBreak(
       [
         { text: "小計", span: 3 },
-        { text: item.workTypeName },
+        { text: item.workTypeName, span: 3, align: "left" },
         { text: formatHoursShort(Math.round(item.hours * 100) / 100) },
         { text: "" },
         { text: formatYen(item.amount) },
@@ -384,7 +392,7 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     drawRowWithBreak(
       [
         { text: "突発手当", span: 3 },
-        { text: `突発手当合計（${amounts.suddenCount}件）`, span: 2, align: "left" },
+        { text: `突発手当合計（${amounts.suddenCount}件）`, span: 4, align: "left" },
         { text: "" },
         { text: formatYen(amounts.suddenAllowanceAmount) },
       ],
@@ -397,7 +405,7 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     drawRowWithBreak(
       [
         { text: "その他", span: 3 },
-        { text: adjustment.name, span: 2, align: "left" },
+        { text: adjustment.name, span: 4, align: "left" },
         { text: "" },
         {
           text: formatYen(adjustment.amount),
@@ -413,13 +421,13 @@ export async function generateWorkReportPdf(input: WorkReportPdfInput): Promise<
     // ---- 外税：消費税・税込合計（2行を同じページにまとめる） ----
     ensureSpace(MIN_ROW_HEIGHT * 2);
     drawRow(
-      [{ text: "消費税（10%）", span: 6 }, { text: formatYen(amounts.tax) }],
+      [{ text: "消費税（10%）", span: 8 }, { text: formatYen(amounts.tax) }],
       font,
       undefined,
       "right"
     );
     drawRow(
-      [{ text: "税込合計", span: 6 }, { text: formatYen(amounts.totalWithTax) }],
+      [{ text: "税込合計", span: 8 }, { text: formatYen(amounts.totalWithTax) }],
       bold,
       COLOR_TOTAL_BG,
       "right"

@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { href: "/", label: "ホーム", icon: "🏠" },
   { href: "/logs", label: "日報一覧", icon: "📝" },
   { href: "/work-types", label: "作業名", icon: "👥" },
+  { href: "/work-places", label: "作業場所", icon: "📍" },
   { href: "/periods", label: "集計", icon: "📊" },
 ];
 

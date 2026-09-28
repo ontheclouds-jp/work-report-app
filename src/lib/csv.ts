@@ -1,10 +1,11 @@
 import { DAY_TYPE_LABEL, getSuddenAllowance } from "@/lib/calculations";
 import { getPeriodDisplayLabel } from "@/lib/period";
-import type { WorkLog, WorkType } from "@/types";
+import type { WorkLog, WorkPlace, WorkType } from "@/types";
 
 const CSV_HEADERS = [
   "日付",
   "作業名",
+  "作業場所",
   "開始時刻",
   "終了時刻",
   "拘束時間",
@@ -35,12 +36,19 @@ function toRow(values: (string | number)[]): string {
 }
 
 /** 日報データをCSV文字列に変換する。Excelでの文字化けを防ぐためUTF-8 BOM付き。 */
-export function workLogsToCsv(logs: WorkLog[], workTypes: WorkType[]): string {
+export function workLogsToCsv(
+  logs: WorkLog[],
+  workTypes: WorkType[],
+  workPlaces: WorkPlace[]
+): string {
   const workTypeNameById = new Map(workTypes.map((w) => [w.id, w.name]));
+  const workPlaceNameById = new Map(workPlaces.map((p) => [p.id, p.name]));
   const rows = logs.map((log) =>
     toRow([
       log.workDate,
       workTypeNameById.get(log.workTypeId) ?? "（不明な作業名）",
+      // 作業場所が未設定（v1.0.13より前）の日報は空欄
+      (log.workPlaceId && workPlaceNameById.get(log.workPlaceId)) || "",
       log.startTime,
       log.endTime,
       log.rawDuration,

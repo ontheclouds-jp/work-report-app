@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/Select";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SuddenBadge } from "@/components/logs/SuddenBadge";
 import { db } from "@/lib/db/db";
+import { WORK_PLACE_UNSET_LABEL } from "@/lib/repositories/workPlaceRepository";
 import { formatCurrency, formatHours } from "@/lib/calculations";
 import {
   getCurrentPeriodLabel,
@@ -21,6 +22,8 @@ import type { WorkLog } from "@/types";
 
 const RECENT_PERIOD_COUNT = 24;
 const PERIOD_ALL = "all";
+const WORK_PLACE_FILTER_ALL = "all";
+const WORK_PLACE_FILTER_UNSET = "unset";
 
 type SortOrder =
   | "date-desc"
@@ -46,6 +49,10 @@ export default function WorkLogsPage() {
     () => db.workTypes.orderBy("name").toArray(),
     []
   );
+  const workPlaces = useLiveQuery(
+    () => db.workPlaces.orderBy("name").toArray(),
+    []
+  );
   const existingPeriodLabels = useLiveQuery(
     () => db.workLogs.orderBy("periodLabel").uniqueKeys(),
     []
@@ -53,12 +60,18 @@ export default function WorkLogsPage() {
 
   const [periodFilter, setPeriodFilter] = useState<string>(PERIOD_ALL);
   const [workTypeFilter, setWorkTypeFilter] = useState<string>("all");
+  const [workPlaceFilter, setWorkPlaceFilter] = useState<string>(WORK_PLACE_FILTER_ALL);
   const [keyword, setKeyword] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("date-desc");
 
   const workTypeNameById = useMemo(
     () => new Map(workTypes?.map((w) => [w.id, w.name]) ?? []),
     [workTypes]
+  );
+
+  const workPlaceNameById = useMemo(
+    () => new Map(workPlaces?.map((p) => [p.id, p.name]) ?? []),
+    [workPlaces]
   );
 
   const availablePeriods = useMemo(() => {
@@ -80,6 +93,14 @@ export default function WorkLogsPage() {
         return false;
       }
       if (workTypeFilter !== "all" && log.workTypeId !== workTypeFilter) {
+        return false;
+      }
+      if (workPlaceFilter === WORK_PLACE_FILTER_UNSET) {
+        if (log.workPlaceId) return false;
+      } else if (
+        workPlaceFilter !== WORK_PLACE_FILTER_ALL &&
+        log.workPlaceId !== workPlaceFilter
+      ) {
         return false;
       }
       if (keywordLower) {
@@ -109,14 +130,26 @@ export default function WorkLogsPage() {
     });
 
     return sorted;
-  }, [workLogs, periodFilter, workTypeFilter, keyword, sortOrder, workTypeNameById]);
+  }, [
+    workLogs,
+    periodFilter,
+    workTypeFilter,
+    workPlaceFilter,
+    keyword,
+    sortOrder,
+    workTypeNameById,
+  ]);
 
   const hasActiveFilter =
-    periodFilter !== PERIOD_ALL || workTypeFilter !== "all" || keyword.trim() !== "";
+    periodFilter !== PERIOD_ALL ||
+    workTypeFilter !== "all" ||
+    workPlaceFilter !== WORK_PLACE_FILTER_ALL ||
+    keyword.trim() !== "";
 
   function clearFilters() {
     setPeriodFilter(PERIOD_ALL);
     setWorkTypeFilter("all");
+    setWorkPlaceFilter(WORK_PLACE_FILTER_ALL);
     setKeyword("");
   }
 
@@ -158,6 +191,20 @@ export default function WorkLogsPage() {
             ))}
           </Select>
         </div>
+
+        <Select
+          value={workPlaceFilter}
+          onChange={(e) => setWorkPlaceFilter(e.target.value)}
+          aria-label="作業場所で絞り込み"
+        >
+          <option value={WORK_PLACE_FILTER_ALL}>すべての作業場所</option>
+          {workPlaces?.map((workPlace) => (
+            <option key={workPlace.id} value={workPlace.id}>
+              {workPlace.name}
+            </option>
+          ))}
+          <option value={WORK_PLACE_FILTER_UNSET}>{WORK_PLACE_UNSET_LABEL}</option>
+        </Select>
 
         <Input
           value={keyword}
@@ -218,6 +265,11 @@ export default function WorkLogsPage() {
                     </p>
                     <p className="text-base font-semibold text-slate-50">
                       {workTypeNameById.get(log.workTypeId) ?? "（不明な作業名）"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      📍
+                      {(log.workPlaceId && workPlaceNameById.get(log.workPlaceId)) ||
+                        WORK_PLACE_UNSET_LABEL}
                     </p>
                     <p className="mt-1 text-sm text-slate-400">
                       {log.startTime}〜{log.endTime}（{formatHours(log.workHours)}）

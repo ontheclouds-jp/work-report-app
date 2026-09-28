@@ -45,11 +45,17 @@ export function WorkLogForm({
     () => db.workTypes.orderBy("name").toArray(),
     []
   );
+  const workPlaces = useLiveQuery(
+    () => db.workPlaces.orderBy("name").toArray(),
+    []
+  );
 
   const [workDate, setWorkDate] = useState(
     initialValue?.workDate ?? todayISODate()
   );
   const [workTypeId, setWorkTypeId] = useState(initialValue?.workTypeId ?? "");
+  // v1.0.13より前の日報は作業場所が未設定のため空欄から選択してもらう
+  const [workPlaceId, setWorkPlaceId] = useState(initialValue?.workPlaceId ?? "");
   const [startTime, setStartTime] = useState(initialValue?.startTime ?? "");
   const [endTime, setEndTime] = useState(initialValue?.endTime ?? "");
   const [content, setContent] = useState(initialValue?.content ?? "");
@@ -204,6 +210,7 @@ export function WorkLogForm({
 
     const parsed = workLogFormSchema.safeParse({
       workTypeId,
+      workPlaceId,
       workDate,
       startTime,
       endTime,
@@ -282,6 +289,35 @@ export function WorkLogForm({
           {workTypes?.length === 0 && (
             <p className="mt-1 text-sm text-amber-400">
               作業名が未登録です。先に作業名を登録してください。
+            </p>
+          )}
+        </Field>
+
+        <Field
+          label="作業場所"
+          required
+          error={errors.workPlaceId}
+          htmlFor="workPlaceId"
+        >
+          <Select
+            id="workPlaceId"
+            value={workPlaceId}
+            onChange={(e) => setWorkPlaceId(e.target.value)}
+          >
+            <option value="">選択してください</option>
+            {workPlaces?.map((workPlace) => (
+              <option key={workPlace.id} value={workPlace.id}>
+                {workPlace.name}
+              </option>
+            ))}
+          </Select>
+          {workPlaces?.length === 0 && (
+            <p className="mt-1 text-sm text-amber-400">
+              作業場所が未登録です。
+              <Link href="/work-places/new" className="underline">
+                作業場所を登録
+              </Link>
+              してください。
             </p>
           )}
         </Field>
@@ -392,7 +428,11 @@ export function WorkLogForm({
             onChange={(e) => setContent(e.target.value)}
             maxLength={200}
             rows={3}
+            placeholder="例：配管の溶接作業"
           />
+          <p className="mt-1 text-sm text-slate-400">
+            作業場所は上の「作業場所」で選ぶため、ここには作業の説明だけを書いてください
+          </p>
         </Field>
 
         <Field label="メモ（任意）" error={errors.memo} htmlFor="memo">

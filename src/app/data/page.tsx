@@ -52,6 +52,7 @@ function formatDateTime(
 
 export default function DataManagementPage() {
   const workTypes = useLiveQuery(() => db.workTypes.toArray(), []);
+  const workPlaces = useLiveQuery(() => db.workPlaces.toArray(), []);
   const existingPeriodLabels = useLiveQuery(
     () => db.workLogs.orderBy("periodLabel").uniqueKeys(),
     []
@@ -116,7 +117,7 @@ export default function DataManagementPage() {
         csvPeriod === PERIOD_ALL
           ? await db.workLogs.toArray()
           : await db.workLogs.where("periodLabel").equals(csvPeriod).toArray();
-      const csv = workLogsToCsv(logs, workTypes ?? []);
+      const csv = workLogsToCsv(logs, workTypes ?? [], workPlaces ?? []);
       const periodPart =
         csvPeriod === PERIOD_ALL ? "全期間" : getPeriodDisplayLabel(csvPeriod);
       triggerFileDownload(
@@ -258,7 +259,7 @@ export default function DataManagementPage() {
             JSONバックアップ
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            全データ（作業名・日報）を1つのJSONファイルに書き出します。
+            全データ（作業名・作業場所・日報）を1つのJSONファイルに書き出します。
           </p>
           <p className="mt-2 text-sm text-slate-400">
             前回のバックアップ：
@@ -274,7 +275,7 @@ export default function DataManagementPage() {
             クラウド自動バックアップ
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            日報・作業名を保存するたびに、自動でVercel
+            日報・作業名・作業場所を保存するたびに、自動でVercel
             Blobへバックアップします（作業者名の設定が必要です）。
           </p>
           <p className="mt-2 text-sm text-slate-400">
@@ -318,7 +319,7 @@ export default function DataManagementPage() {
         <Card className="border-red-800/50">
           <h2 className="text-lg font-semibold text-red-300">全データ削除</h2>
           <p className="mt-1 text-sm text-slate-400">
-            作業名・日報のすべてのデータを削除します。元に戻せません。実行するには下に「{DELETE_CONFIRM_PHRASE}」と入力してください。
+            作業名・作業場所・日報のすべてのデータを削除します。元に戻せません。実行するには下に「{DELETE_CONFIRM_PHRASE}」と入力してください。
           </p>
           <Input
             value={deleteConfirmText}
@@ -348,7 +349,9 @@ export default function DataManagementPage() {
       <ConfirmDialog
         open={pendingRestore !== null}
         title="データを復元します"
-        message={`このバックアップ（作業名${pendingRestore?.workTypes.length ?? 0}件、日報${
+        message={`このバックアップ（作業名${pendingRestore?.workTypes.length ?? 0}件、作業場所${
+          pendingRestore?.workPlaces?.length ?? 0
+        }件、日報${
           pendingRestore?.workLogs.length ?? 0
         }件）で現在のデータを置き換えます。元に戻せません。`}
         confirmLabel={restoreBusy ? "復元中..." : "復元する"}
@@ -360,7 +363,7 @@ export default function DataManagementPage() {
       <ConfirmDialog
         open={confirmingDeleteAll}
         title="全データを削除します"
-        message="作業名・日報のすべてのデータを削除します。元に戻せません。"
+        message="作業名・作業場所・日報のすべてのデータを削除します。元に戻せません。"
         confirmLabel={deleteBusy ? "削除中..." : "削除する"}
         danger
         onConfirm={handleDeleteAll}

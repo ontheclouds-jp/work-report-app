@@ -14,9 +14,22 @@ export interface WorkType {
 
 export type WorkTypeInput = Omit<WorkType, "id" | "createdAt" | "updatedAt">;
 
+/** 作業場所（例：亘理工場、自宅）。作業名と同じくステータスで使用状況を管理する */
+export interface WorkPlace {
+  id: string;
+  name: string;
+  status: WorkTypeStatus;
+  memo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WorkPlaceInput = Omit<WorkPlace, "id" | "createdAt" | "updatedAt">;
+
 export interface WorkLog {
   id: string;
   workTypeId: string;
+  workPlaceId?: string; // 作業場所ID（v1.0.13より前のデータは未設定＝「未設定」扱い）
   workDate: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string; // HH:mm

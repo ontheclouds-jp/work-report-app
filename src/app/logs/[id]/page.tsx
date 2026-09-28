@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { SuddenBadge } from "@/components/logs/SuddenBadge";
 import { db } from "@/lib/db/db";
 import { deleteWorkLog } from "@/lib/repositories/workLogRepository";
+import { WORK_PLACE_UNSET_LABEL } from "@/lib/repositories/workPlaceRepository";
 import {
   DAY_TYPE_LABEL,
   formatCurrency,
@@ -33,6 +34,11 @@ export default function WorkLogDetailPage() {
   const workLog = useLiveQuery(() => db.workLogs.get(params.id), [params.id]);
   const workType = useLiveQuery(
     () => (workLog ? db.workTypes.get(workLog.workTypeId) : undefined),
+    [workLog]
+  );
+  const workPlace = useLiveQuery(
+    () =>
+      workLog?.workPlaceId ? db.workPlaces.get(workLog.workPlaceId) : undefined,
     [workLog]
   );
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -78,6 +84,7 @@ export default function WorkLogDetailPage() {
       <Card>
         <DetailRow label="日付" value={workLog.workDate} />
         <DetailRow label="作業名" value={workType?.name ?? "（不明な作業名）"} />
+        <DetailRow label="作業場所" value={workPlace?.name ?? WORK_PLACE_UNSET_LABEL} />
         <DetailRow
           label="時間"
           value={`${workLog.startTime}〜${workLog.endTime}`}

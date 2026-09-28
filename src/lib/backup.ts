@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db/db";
 import { normalizeRecipientSettings } from "@/lib/pdfRecipient";
-import type { AppSettings, PeriodAdjustment, WorkType, WorkLog } from "@/types";
+import type { AppSettings, PeriodAdjustment, WorkPlace, WorkType, WorkLog } from "@/types";
 
 const BACKUP_VERSION = 1;
 const LAST_BACKUP_KEY = "workReportApp:lastBackupAt";
@@ -14,14 +14,16 @@ export interface BackupData {
   workLogs: WorkLog[];
   appSettings?: AppSettings;
   periodAdjustments?: PeriodAdjustment[];
+  workPlaces?: WorkPlace[];
 }
 
 export async function buildBackupData(): Promise<BackupData> {
-  const [workTypes, workLogs, appSettings, periodAdjustments] = await Promise.all([
+  const [workTypes, workLogs, appSettings, periodAdjustments, workPlaces] = await Promise.all([
     db.workTypes.toArray(),
     db.workLogs.toArray(),
     db.appSettings.get("default"),
     db.periodAdjustments.toArray(),
+    db.workPlaces.toArray(),
   ]);
   return {
     version: BACKUP_VERSION,
@@ -30,6 +32,7 @@ export async function buildBackupData(): Promise<BackupData> {
     workLogs,
     appSettings,
     periodAdjustments,
+    workPlaces,
   };
 }
 
@@ -61,9 +64,20 @@ const workTypeBackupSchema = z.object({
   updatedAt: z.string(),
 });
 
+const workPlaceBackupSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  status: z.enum(["active", "paused", "ended"]),
+  memo: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 const workLogBackupSchema = z.object({
   id: z.string(),
   workTypeId: z.string(),
+  // v1.0.13より前のバックアップには含まれないため任意
+  workPlaceId: z.string().optional(),
   workDate: z.string(),
   startTime: z.string(),
   endTime: z.string(),
@@ -115,6 +129,8 @@ const backupSchema = z.object({
   appSettings: appSettingsBackupSchema.optional(),
   // v1.0.6より前のバックアップには含まれないため任意
   periodAdjustments: z.array(periodAdjustmentBackupSchema).optional(),
+  // v1.0.13より前のバックアップには含まれないため任意
+  workPlaces: z.array(workPlaceBackupSchema).optional(),
 });
 
 /** JSONテキストをバックアップデータとして検証・変換する。形式が不正な場合は例外を投げる。 */
@@ -134,12 +150,19 @@ export function parseBackupFile(jsonText: string): BackupData {
 
 /** バックアップデータで全データを置き換える。既存データは失われる。 */
 export async function restoreFromBackup(data: BackupData): Promise<void> {
-  const tables = [db.workTypes, db.workLogs, db.appSettings, db.periodAdjustments];
+  const tables = [
+    db.workTypes,
+    db.workLogs,
+    db.appSettings,
+    db.periodAdjustments,
+    db.workPlaces,
+  ];
   await db.transaction("rw", tables, async () => {
     await db.workTypes.clear();
     await db.workLogs.clear();
     await db.appSettings.clear();
     await db.periodAdjustments.clear();
+    await db.workPlaces.clear();
     if (data.workTypes.length > 0) {
       await db.workTypes.bulkAdd(data.workTypes);
     }
@@ -156,16 +179,26 @@ export async function restoreFromBackup(data: BackupData): Promise<void> {
     if (data.periodAdjustments && data.periodAdjustments.length > 0) {
       await db.periodAdjustments.bulkAdd(data.periodAdjustments);
     }
+    if (data.workPlaces && data.workPlaces.length > 0) {
+      await db.workPlaces.bulkAdd(data.workPlaces);
+    }
   });
   setLastRestoreAt(new Date().toISOString());
 }
 
 export async function deleteAllData(): Promise<void> {
-  const tables = [db.workTypes, db.workLogs, db.appSettings, db.periodAdjustments];
+  const tables = [
+    db.workTypes,
+    db.workLogs,
+    db.appSettings,
+    db.periodAdjustments,
+    db.workPlaces,
+  ];
   await db.transaction("rw", tables, async () => {
     await db.workTypes.clear();
     await db.workLogs.clear();
     await db.appSettings.clear();
     await db.periodAdjustments.clear();
+    await db.workPlaces.clear();
   });
 }

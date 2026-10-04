@@ -278,6 +278,14 @@ export default function DataManagementPage() {
             日報・作業名・作業場所を保存するたびに、自動でVercel
             Blobへバックアップします（作業者名の設定が必要です）。
           </p>
+          <p className="mt-1 text-sm text-slate-400">
+            最新のファイルに加えて、日付ごとの履歴ファイル（history
+            フォルダ）も1日1つずつ残ります。
+          </p>
+          <p className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-sm text-amber-200">
+            サイトデータが消えた場合は、Vercelダッシュボードの history
+            フォルダから前日以前のファイルを選んで『JSONから復元』で読み込んでください。
+          </p>
           <p className="mt-2 text-sm text-slate-400">
             最終自動バックアップ日時：
             <span className="text-slate-200">
